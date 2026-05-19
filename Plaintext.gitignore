@@ -1,0 +1,17 @@
+# Python carpetas de entorno
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Node / React dependencias
+node_modules/
+dist/
+
+# Base de Datos Local 
+desktop-app/backend/database/*.db
+
+# Archivos temporales del sistema
+.vscode/
+.DS_Store
+Thumbs.db
