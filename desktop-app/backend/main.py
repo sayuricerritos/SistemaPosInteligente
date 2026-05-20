@@ -5,19 +5,22 @@ import os
 from datetime import datetime
 
 app = Flask(__name__)
-CORS(app)  # Permite que React (puerto 5173) se conecte sin bloqueos de seguridad
+CORS(app)  # Habilita el pase de seguridad para React
 
 DB_PATH = os.path.join('database', 'pos_inteligente.db')
 
 def get_db_connection():
-    """Establece una conexión limpia con la base de datos local"""
+    """Establece la conexión física con SQLite"""
     conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row  # Permite acceder a las columnas por su nombre
+    conn.row_factory = sqlite3.Row
     return conn
 
+# ==========================================
+# 1. ENDPOINTS DE PRODUCTOS
+# ==========================================
 @app.route('/api/productos', methods=['GET'])
 def obtener_productos():
-    """Ruta para cargar el menú en el Panel de Ventas"""
+    """Ruta para cargar el menú en las cuadrículas táctiles"""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -28,15 +31,47 @@ def obtener_productos():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# ==========================================
+# 2. ENDPOINTS DE MESAS
+# ==========================================
+@app.route('/api/mesas', methods=['GET'])
+def obtener_mesas():
+    """Devuelve la lista de mesas locales y su estado actual"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id_mesa, numero_mesa, estado, capacidad FROM Mesas WHERE id_mesa > 0;")
+        mesas = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return jsonify(mesas), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/mesas/<int:id_mesa>/estado', methods=['PUT'])
+def actualizar_estado_mesa(id_mesa):
+    """Cambia el estado de una mesa (Libre/Ocupada) en la base de datos"""
+    data = request.json or {}
+    nuevo_estado = data.get('estado')
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE Mesas SET estado = ? WHERE id_mesa = ?;", (nuevo_estado, id_mesa))
+        conn.commit()
+        conn.close()
+        return jsonify({"mensaje": f"Mesa {id_mesa} actualizada a {nuevo_estado}"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ==========================================
+# 3. ENDPOINTS DE TRANSACCIONES / PEDIDOS
+# ==========================================
 @app.route('/api/pago-inmediato', methods=['POST'])
 def crear_pedido():
-    """Ruta transaccional unificada para guardar una venta inmediata"""
-    data = request.json
-    if not data:
-        return jsonify({"error": "No se recibieron datos"}), 400
-
+    """Guarda físicamente la comanda/pedido en SQLite"""
+    data = request.json or {}
     id_empleado = data.get('id_empleado', 1)
-    id_mesa = data.get('id_mesa', 0)  # 0 indica 'Para Llevar' según el diagrama de estados
+    id_mesa = data.get('id_mesa', 0)
     items = data.get('items', [])
 
     if not items:
@@ -46,24 +81,24 @@ def crear_pedido():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Calcular el total de forma segura verificando las claves del JSON
+        # Calcular total
         total_pedido = 0
         for item in items:
             precio = item.get('precio_venta') or item.get('precio', 0)
             cantidad = item.get('cantidad', 1)
             total_pedido += float(precio) * int(cantidad)
         
-        # Obtener la fecha y hora actual del sistema en formato estándar YYYY-MM-DD HH:MM:SS
         fecha_actual = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        # Insertar la cabecera del pedido (Mesa 0 = Llevar)
+        
+        # Insertar cabecera
         cursor.execute("""
-         INSERT INTO Pedidos (id_empleado, id_mesa, total, estado, fecha_hora) 
-         VALUES (?, ?, ?, 'Pagado', ?);
-         """, (id_empleado, id_mesa, total_pedido, fecha_actual))
+            INSERT INTO Pedidos (id_empleado, id_mesa, total, estado, fecha_hora) 
+            VALUES (?, ?, ?, 'Pagado', ?);
+        """, (id_empleado, id_mesa, total_pedido, fecha_actual))
         
         id_pedido = cursor.lastrowid
 
-        # Insertar los detalles del pedido
+        # Insertar detalles
         for item in items:
             id_prod = item.get('id_producto')
             precio = item.get('precio_venta') or item.get('precio', 0)
@@ -77,14 +112,16 @@ def crear_pedido():
 
         conn.commit()
         conn.close()
-        return jsonify({"mensaje": "Pedido guardado localmente con éxito", "id_pedido": id_pedido}), 201
+        return jsonify({"mensaje": "Pedido guardado con éxito", "id_pedido": id_pedido}), 201
 
     except Exception as e:
-        # Esto imprimirá el error real en tu terminal negra para que podamos verlo
         print(f"\n[ERROR CRÍTICO SQLITE]: {str(e)}\n")
         return jsonify({"error": str(e)}), 500
+
+# ==========================================
+# ARRANQUE DEL SERVIDOR LOCAL
+# ==========================================
 if __name__ == '__main__':
-    # Validar que la base de datos exista antes de encender
     if not os.path.exists(DB_PATH):
-        print("[Alerta] Base de datos no encontrada. Recuerda ejecutar init_db.py primero.")
+        print("[Alerta] Base de datos no encontrada.")
     app.run(debug=True, port=5000)
