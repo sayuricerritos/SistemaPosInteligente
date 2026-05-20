@@ -1,1 +1,1 @@
-# SmartPOS - Sistema de Ventas Kazoku Roll.
+# SmartPOS - Sistema de Ventas 
