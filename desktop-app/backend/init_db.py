@@ -63,7 +63,8 @@ def inicializar_base_de_datos():
             nombre_producto TEXT NOT NULL,
             precio_venta REAL NOT NULL,
             categoria TEXT NOT NULL,
-            insumos_receta TEXT DEFAULT '[]'
+            insumos_receta TEXT DEFAULT '[]',
+            extras_disponibles TEXT DEFAULT '[]' -- <-- COLUMNA INTEGRADA CON ÉXITO       
         );
     ''')
 

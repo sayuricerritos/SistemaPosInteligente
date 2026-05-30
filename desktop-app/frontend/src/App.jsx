@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Llevar from './Llevar'
 import Mesas from './Mesas'
 import Menu from './Menu'
@@ -7,30 +7,73 @@ import Usuarios from './Usuarios'
 import Administracion from './Administracion'
 import Configuracion from './Configuracion'
 import Pedidos from './Pedidos'
-// Nota: En los siguientes pasos crearemos los componentes de cada vista para no saturar este archivo.
 
 function App() {
   const [vistaActual, setVistaActual] = useState('INICIO')
+  const [alertasIA, setAlertasIA] = useState([])
 
-  // Opciones de la barra lateral según tu mapa de navegación
-  const menuOpciones = [
-    { id: 'INICIO', label: 'INICIO', icon: '🏠' },
-    { id: 'MESAS', label: 'MESAS', icon: '🍽️' },
-    { id: 'LLEVAR', label: 'LLEVAR', icon: '🛍️' },
-    { id: 'PEDIDOS', label: 'PEDIDOS', icon: '📋' },
-    { id: 'MENU', label: 'MENÚ', icon: '📖' },
-    { id: 'INVENTARIO', label: 'INVENTARIO', icon: '📦' },
-    { id: 'USUARIOS', label: 'USUARIOS', icon: '👥' },
-    { id: 'ADMINISTRACION', label: 'ADMINISTRACIÓN', icon: '📊' },
-    { id: 'CONFIGURACION', label: 'CONFIGURACIÓN', icon: '⚙️' },
-  ]
+  // Carga automática de las alertas de inventario y IA real
+  useEffect(() => {
+    fetch('http://127.0.0.1:5000/api/ia/alertas-dashboard')
+      .then(res => res.json())
+      .then(data => setAlertasIA(Array.isArray(data) ? data : []))
+      .catch(err => console.error("Error al conectar alertas de IA:", err))
+  }, [])
 
+const [metricasHoy, setMetricasHoy] = useState({
+  monto_ventas: 0,
+  tickets_emitidos: 0,
+  ticket_promedio: 0
+});
+const [balanceHoy, setBalanceHoy] = useState({
+  total_ventas: 0,
+  total_gastos: 0,
+  balance_neto: 0
+});
+
+// Función para solicitar el corte de caja real a Flask
+const cargarBalanceReal = () => {
+  fetch('http://127.0.0.1:5000/api/administracion/corte-diario')
+    .then(res => res.json())
+    .then(data => {
+      // Si el backend responde correctamente, guardamos los datos
+      if (!data.error) {
+        setBalanceHoy(data);
+      }
+    })
+    .catch(err => console.error("Error al traer balance de caja:", err));
+};
+
+// Asegúrate de llamarlo dentro de tu useEffect que ya existe para que cargue al iniciar
+useEffect(() => {
+  cargarBalanceReal();
+  
+  // Refrescar automáticamente cada 30 segundos junto con las otras métricas
+  const intervalo = setInterval(cargarBalanceReal, 30000);
+  return () => clearInterval(intervalo);
+}, []);
+
+// Función para pedirle los datos reales a Flask
+const cargarMetricasReales = () => {
+  fetch('http://127.0.0.1:5000/api/administracion/resumen-hoy')
+    .then(res => res.json())
+    .then(data => setMetricasHoy(data))
+    .catch(err => console.error("Error al traer métricas vivas:", err));
+};
+
+// Cargar al montar el componente
+useEffect(() => {
+  cargarMetricasReales();
+  
+  // Opcional: Refrescar de forma automática cada 30 segundos por si cae un pedido web
+  const intervalo = setInterval(cargarMetricasReales, 30000);
+  return () => clearInterval(intervalo);
+}, []);  
+  
   return (
     <div className="flex min-h-screen bg-gray-100 text-gray-800 antialiased font-sans">
       
-      
-      {/* NAVEGACIÓN / BOTONES LATERALES */}
-        {/* BARRA LATERAL ULTRA COMPACTA (DISEÑO TÁCTIL INDUSTRIAL) */}
+      {/* BARRA LATERAL ULTRA COMPACTA (DISEÑO TÁCTIL INDUSTRIAL) */}
       <aside className="w-20 bg-[#2D2A26] flex flex-col justify-between items-center py-6 border-r border-black/10 shadow-lg flex-shrink-0">
         
         {/* LOGO SUPERIOR COMPACTO */}
@@ -59,7 +102,7 @@ function App() {
               <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
               <polyline points="9 22 9 12 15 12 15 22" />
             </svg>
-            <span className="text-[9px] font-bold tracking-tight mt-1 opacity-70 group-hover:opacity-100">INI</span>
+            
           </button>
 
           {/* MESAS */}
@@ -76,7 +119,7 @@ function App() {
               <path d="M20 12v8" />
               <path d="M7 12V6a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v6" />
             </svg>
-            <span className="text-[9px] font-bold tracking-tight mt-1 opacity-70 group-hover:opacity-100">MES</span>
+            
           </button>
 
           {/* LLEVAR */}
@@ -89,10 +132,10 @@ function App() {
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
-                      <line x1="3" y1="6" x2="21" y2="6" />
-                      <path d="M16 10a4 4 0 0 1-8 0" />
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <path d="M16 10a4 4 0 0 1-8 0" />
             </svg>
-            <span className="text-[9px] font-bold tracking-tight mt-1 opacity-70 group-hover:opacity-100">LLE</span>
+            
           </button>
 
           {/* PEDIDOS */}
@@ -109,7 +152,7 @@ function App() {
               <line x1="9" y1="12" x2="15" y2="12" />
               <line x1="9" y1="16" x2="15" y2="16" />
             </svg>
-            <span className="text-[9px] font-bold tracking-tight mt-1 opacity-70 group-hover:opacity-100">PED</span>
+            
           </button>
 
           <div className="w-8 border-t border-white/10 my-2" />
@@ -125,7 +168,7 @@ function App() {
             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
             </svg>
-            <span className="text-[9px] font-bold tracking-tight mt-1 opacity-70 group-hover:opacity-100">MEN</span>
+            
           </button>
 
           {/* INVENTARIO */}
@@ -142,7 +185,7 @@ function App() {
               <line x1="15" y1="3" x2="15" y2="21" />
               <line x1="3" y1="9" x2="21" y2="9" />
             </svg>
-            <span className="text-[9px] font-bold tracking-tight mt-1 opacity-70 group-hover:opacity-100">INV</span>
+            
           </button>
 
           {/* USUARIOS */}
@@ -157,7 +200,7 @@ function App() {
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
               <circle cx="9" cy="7" r="4" />
             </svg>
-            <span className="text-[9px] font-bold tracking-tight mt-1 opacity-70 group-hover:opacity-100">USR</span>
+            
           </button>
 
           {/* ADMINISTRACIÓN */}
@@ -173,7 +216,7 @@ function App() {
               <line x1="12" y1="20" x2="12" y2="4" />
               <line x1="6" y1="20" x2="6" y2="14" />
             </svg>
-            <span className="text-[9px] font-bold tracking-tight mt-1 opacity-70 group-hover:opacity-100">ADM</span>
+            
           </button>
 
           {/* CONFIGURACIÓN */}
@@ -188,7 +231,7 @@ function App() {
               <circle cx="12" cy="12" r="3" />
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
             </svg>
-            <span className="text-[9px] font-bold tracking-tight mt-1 opacity-70 group-hover:opacity-100">CFG</span>
+            
           </button>
 
         </nav>
@@ -205,14 +248,14 @@ function App() {
         {/* BARRA SUPERIOR (Navbar) */}
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 shadow-sm">
           <div className="flex items-center gap-2">
-            
+            <span className="text-gray-400 font-medium">Sección:</span>
             <span className="text-gray-800 font-bold uppercase tracking-wider text-sm bg-gray-100 px-2.5 py-1 rounded-md">
               {vistaActual}
             </span>
           </div>
           <div className="flex items-center gap-4">
             <div className="relative p-2 bg-gray-50 rounded-full hover:bg-gray-100 cursor-pointer transition-colors">
-              🔔 <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
+               <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
             </div>
             <div className="h-8 w-px bg-gray-200"></div>
             <span className="text-sm font-semibold text-gray-700 bg-emerald-50 py-1 px-3 rounded-full border border-emerald-100">
@@ -221,16 +264,16 @@ function App() {
           </div>
         </header>
 
-       {/* CONTENIDO DE LA VISTA CENTRAL - SISTEMA MODULAR */}
+        {/* CONTENIDO DE LA VISTA CENTRAL - SISTEMA MODULAR */}
         <section className="flex-1 p-8 overflow-y-auto">
           {vistaActual === 'INICIO' && (
             <div className="space-y-6 animate-fade-in">
               <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-gray-100 shadow-2xs">
-                <h2 className="text-xl font-black text-slate-800 tracking-tight align-center">INICIO</h2>
-                
+                <h2 className="text-xl font-black text-slate-800 tracking-tight">INICIO </h2>
+                <span className="text-3xs font-extrabold text-slate-400 bg-slate-100 px-2.5 py-1 rounded-md uppercase tracking-wider"> </span>
               </div>
               
-              {/* ACCESOS RÁPIDOS SUPERIORES (CON ICONOS VECTORIALES SVG) */}
+              {/* ACCESOS RÁPIDOS SUPERIORES */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
                 
                 {/* BOTÓN MESAS */}
@@ -240,7 +283,6 @@ function App() {
                 >
                   <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                   <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center border border-white/20 shadow-inner">
-                    {/* SVG: Mesa con dos sillas */}
                     <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M4 12h16" />
                       <path d="M4 12v8" />
@@ -258,7 +300,6 @@ function App() {
                 >
                   <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                   <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center border border-white/20 shadow-inner">
-                    {/* SVG: Bolsa de compras para llevar */}
                     <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
                       <line x1="3" y1="6" x2="21" y2="6" />
@@ -275,7 +316,6 @@ function App() {
                 >
                   <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                   <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center border border-white/20 shadow-inner">
-                    {/* SVG: Tabla comanda/check list */}
                     <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
                       <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
@@ -292,54 +332,96 @@ function App() {
                 <div className="bg-white p-6 rounded-2xl shadow-2xs border border-gray-200/80 flex flex-col justify-between h-48">
                   <div>
                     <h3 className="text-3xs font-black text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 block"></span> Balance de Caja
+                      <span className={`w-2 h-2 rounded-full block ${balanceHoy.balance_neto >= 0 ? 'bg-emerald-500' : 'bg-red-500'}`}></span> 
+                      Balance de Caja
                     </h3>
-                    <div className="space-y-2 text-xs font-bold">
-                      <div className="flex justify-between border-b border-gray-50 pb-1.5"><span className="text-slate-500">Flujo Efectivo:</span><span className="font-mono text-emerald-600 font-black text-sm">$2,450.00</span></div>
-                      <div className="flex justify-between pt-0.5"><span className="text-slate-500">Terminal Tarjeta:</span><span className="font-mono text-blue-600 font-black text-sm">$3,890.00</span></div>
-                    </div>
+                    
+                    <span className={`font-mono font-black text-xl tracking-tight ${balanceHoy.balance_neto >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                      ${balanceHoy.balance_neto.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
                   </div>
                   <div className="grid grid-cols-2 gap-2 border-t pt-3 mt-2">
                     <button onClick={() => setVistaActual('ADMINISTRACION')} className="bg-gray-100 hover:bg-gray-200 text-slate-600 py-2 rounded-xl text-3xs font-black uppercase tracking-wider text-center transition-colors">Ver Caja</button>
-                    <button className="bg-slate-800 hover:bg-slate-900 text-white py-2 rounded-xl text-3xs font-black uppercase tracking-wider text-center transition-colors">Añadir Gasto</button>
+                    <button onClick={() => setVistaActual('ADMINISTRACION')} className="bg-slate-800 hover:bg-slate-900 text-white py-2 rounded-xl text-3xs font-black uppercase tracking-wider text-center transition-colors">Añadir Gasto</button>
                   </div>
                 </div>
 
                 <div className="bg-white p-6 rounded-2xl shadow-2xs border border-gray-200/80 flex flex-col justify-between h-48">
                   <div>
                     <h3 className="text-3xs font-black text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-blue-500 block"></span> Rendimiento Comercial (Hoy)
+                      <span className="w-2 h-2 rounded-full bg-blue-500 block"></span> Resumen del Día
                     </h3>
                     <div className="space-y-2 text-xs font-bold">
-                      <div className="flex justify-between border-b border-gray-50 pb-1.5"><span className="text-slate-500">Monto Ventas:</span><span className="font-mono text-slate-800 font-black text-sm">$6,340.00</span></div>
-                      <div className="flex justify-between border-b border-gray-50 pb-1.5"><span className="text-slate-500">Tickets Emitidos:</span><span className="font-mono text-slate-800 font-black text-sm">42</span></div>
-                      <div className="flex justify-between pt-0.5"><span className="text-slate-500">Ticket Promedio:</span><span className="font-mono text-slate-800 font-black text-sm">$151.00</span></div>
-                    </div>
+  <div className="flex justify-between border-b border-gray-50 pb-1.5">
+    <span className="text-slate-500">Monto Ventas:</span>
+    <span className="font-mono text-slate-800 font-black text-sm">
+      ${metricasHoy.monto_ventas.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+    </span>
+  </div>
+  
+  <div className="flex justify-between border-b border-gray-50 pb-1.5">
+    <span className="text-slate-500">Tickets Emitidos:</span>
+    <span className="font-mono text-slate-800 font-black text-sm">
+      {metricasHoy.tickets_emitidos}
+    </span>
+  </div>
+  
+  <div className="flex justify-between pt-0.5">
+    <span className="text-slate-500">Ticket Promedio:</span>
+    <span className="font-mono text-slate-800 font-black text-sm">
+      ${metricasHoy.ticket_promedio.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+    </span>
+  </div>
+</div>
                   </div>
                 </div>
               </div>
-
-              {/* SECCIÓN INFERIOR: ALERTAS CRÍTICAS DE INVENTARIO */}
+              
+              {/* SECCIÓN INFERIOR: ALERTAS CRÍTICAS DE INVENTARIO CONECTADAS A IA REAL */}
               <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-2xs space-y-3">
                 <h3 className="text-3xs font-black text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-amber-500 block"></span> Alertas del Sistema & Stock
+                  <span className="w-2 h-2 rounded-full bg-purple-600 block"></span> Alertas del Sistema & Stock Predictivo 
                 </h3>
-                <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-xl text-xs font-bold flex items-center gap-3 shadow-3xs">
-                  <span className="text-base">⚠️</span>
-                  <div>
-                    <p className="font-black text-amber-900">Café Arábica Bajo en Stock</p>
-                    <p className="text-3xs opacity-85 font-medium mt-0.5">Quedan únicamente 5 kg restantes en el almacén físico local.</p>
-                  </div>
+                
+                <div className="space-y-2">
+                  {alertasIA.length === 0 ? (
+                    <div className="bg-gray-50 border border-gray-200 text-gray-500 px-4 py-3 rounded-xl text-xs font-bold flex items-center gap-3">
+                      <span>🔄</span>
+                      <p className="font-medium">Sincronizando analíticas ...</p>
+                    </div>
+                  ) : (
+                    alertasIA.map((alerta, idx) => (
+                      <div 
+                        key={idx} 
+                        className={`border px-4 py-3 rounded-xl text-xs font-bold flex items-center gap-3 shadow-3xs transition-all ${
+                          alerta.tipo === 'IA_PREDICCION' 
+                            ? 'bg-purple-50 border-purple-200 text-purple-900' 
+                            : alerta.tipo === 'STOCK_CRITICO'
+                            ? 'bg-amber-50 border-amber-200 text-amber-800'
+                            : 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                        }`}
+                      >
+                        <span className="text-base">
+                          {alerta.tipo === 'IA_PREDICCION' ? '🤖' : alerta.tipo === 'STOCK_CRITICO' ? '⚠️' : '✨'}
+                        </span>
+                        <div>
+                          <p className={`font-black ${
+                            alerta.tipo === 'IA_PREDICCION' ? 'text-purple-950' : alerta.tipo === 'STOCK_CRITICO' ? 'text-amber-900' : 'text-emerald-950'
+                          }`}>
+                            {alerta.tipo === 'IA_PREDICCION' ? 'Análisis de Demanda Estimada' : alerta.tipo === 'STOCK_CRITICO' ? 'Alerta de Almacén Físico' : 'Estatus Operativo'}
+                          </p>
+                          <p className="text-3xs opacity-85 font-medium mt-0.5 normal-case leading-relaxed">{alerta.mensaje}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
 
             </div>
           )}
-            
 
-          
-
-         {/* RENDERIZADO EXCLUSIVO DE COMPONENTES */}
+          {/* RENDERIZADO EXCLUSIVO DE COMPONENTES DE OTRAS PESTAÑAS */}
           {vistaActual === 'LLEVAR' && <Llevar />}
           {vistaActual === 'MESAS' && <Mesas />}
           {vistaActual === 'MENU' && <Menu />}

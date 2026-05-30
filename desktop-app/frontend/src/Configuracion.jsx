@@ -34,12 +34,12 @@ export default function Configuracion() {
     <div className="max-w-2xl bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-6 animate-fade-in">
       <div>
         <h2 className="text-xl font-bold text-gray-800">Configuración General del Sistema</h2>
-        <p className="text-xs text-gray-400 mt-1">Ajustes de identidad, impuestos y control de variables físicas del local.</p>
+        <p className="text-xs text-gray-400 mt-1">Ajustes de identidad, impuestos del local.</p>
       </div>
 
       {mensaje && (
         <div className="bg-[#6B8E23] text-white p-3 rounded-xl text-xs font-bold shadow-sm">
-          ✅ {mensaje}
+           {mensaje}
         </div>
       )}
 

@@ -63,7 +63,7 @@ export default function Inventario() {
           <p className="text-xs text-gray-400 mt-0.5">Monitoreo crítico de stock base y mermas operativas en tiempo real.</p>
         </div>
         <button onClick={cargarInsumos} className="bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-2xs py-2 px-4 rounded-xl transition-colors">
-          🔄 Recargar Almacén
+           Recargar Almacén
         </button>
       </div>
 
@@ -130,7 +130,7 @@ export default function Inventario() {
               <span className={`text-3xs font-black uppercase px-2 py-0.5 rounded ${
                 tipoAjuste === 'ENTRADA' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
               }`}>
-                {tipoAjuste === 'ENTRADA' ? '📥 Registrar Entrada Stock' : '🗑️ Reportar Merma'}
+                {tipoAjuste === 'ENTRADA' ? '+ Registrar Entrada Stock' : ' - Reportar Merma'}
               </span>
               <h3 className="text-sm font-black text-gray-800 mt-1.5">{insumoSeleccionado.nombre_insumo}</h3>
             </div>

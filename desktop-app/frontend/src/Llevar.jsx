@@ -91,27 +91,38 @@ export default function Llevar() {
   const calcularTotalCarrito = () => {
     return carritoLlevar.reduce((acc, i) => acc + calcularPrecioItem(i), 0)
   }
-
-  const procesarVentaInmediata = () => {
-    const totalFinal = calcularTotalCarrito() + parseFloat(propina || 0)
+const procesarVentaInmediata = async () => {
+    const totalFinal = calcularTotalCarrito() + parseFloat(propina || 0);
     
-    // Mandamos el ticket rápido de mostrador al backend
-    fetch('http://127.0.0.1:5000/api/mesas/cerrar', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        numero_mesa: "LLEVAR / MOSTRADOR", 
-        total: totalFinal, 
-        metodo_pago: metodoPago 
-      })
-    }).then(() => {
-      alert(`💰 Venta Rápida Completada. ¡Boucher térmico impreso en caja!`)
-      setCarritoLlevar([])
-      setMostrarModalPago(false)
-      setPropina(0)
-      setEfectivoRecibido('')
-    })
-  }
+    try {
+      // Disparamos la petición al servidor Flask de forma limpia y directa
+      const respuesta = await fetch('http://127.0.0.1:5000/api/mesas/cerrar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          numero_mesa: "LLEVAR / MOSTRADOR", 
+          total: totalFinal, 
+          metodo_pago: metodoPago,
+          productos: carritoLlevar // Detalle completo para la cocina
+        })
+      });
+
+      if (!respuesta.ok) {
+        throw new Error('El servidor local rechazó la operación.');
+      }
+
+      // Si todo sale bien, ejecutamos la limpieza y reseteo del módulo
+      alert(`💰 Venta Rápida Completada. ¡Boucher enviado a la cola de producción!`);
+      setCarritoLlevar([]);
+      setMostrarModalPago(false);
+      setPropina(0);
+      setEfectivoRecibido('');
+      
+    } catch (err) {
+      console.error("Error en flujo de caja:", err);
+      alert(`❌ Error al procesar la venta: ${err.message}`);
+    }
+  };
 
   const opcionesMesaConfig = productoAEditar ? obtenerOpcionesDePersonalizacion(productoAEditar.categoria) : { modificadores: [], extras: [] }
 

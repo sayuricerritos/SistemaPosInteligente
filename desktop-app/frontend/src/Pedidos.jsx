@@ -13,7 +13,6 @@ export default function Pedidos() {
         return res.json();
       })
       .then((data) => {
-        // Forzamos a que si la API no manda un arreglo, no rompa el .map()
         setPedidos(Array.isArray(data) ? data : []);
         setCargando(false);
       })
@@ -61,7 +60,6 @@ export default function Pedidos() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {pedidos.map((pedido, index) => {
-            // Aseguramos variables seguras para evitar colapsos por datos nulos
             const origen = pedido.numero_mesa || "Mostrador";
             const totalStr = pedido.total ? `$${parseFloat(pedido.total).toFixed(2)}` : "$0.00";
             const listaProductos = Array.isArray(pedido.productos) ? pedido.productos : [];
@@ -97,15 +95,30 @@ export default function Pedidos() {
                     <p className="text-xs text-gray-400">Total a liquidar:</p>
                     <p className="text-xl font-black text-gray-800">{totalStr}</p>
                   </div>
-                  <button 
+                  
+                  {/* BOTÓN CON SINTAXIS Y ENRUTAMIENTO CORREGIDOS */}
+                  <button
                     onClick={() => {
-                      // Simulación rápida de despacho/completado
-                      alert(`Pedido de ${origen} marcado como listo para entrega.`);
+                      fetch('http://127.0.0.1:5000/api/pedidos/despachar', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ numero_mesa: origen })
+                      })
+                      .then(res => {
+                        if (!res.ok) throw new Error('Error al despachar');
+                        return res.json();
+                      })
+                      .then(() => {
+                        alert(`¡Orden de ${origen} despachada con éxito!`);
+                        obtenerPedidos(); // Refrescar monitor en tiempo real
+                      })
+                      .catch(err => alert(`Error: ${err.message}`));
                     }}
-                    className="bg-gray-800 hover:bg-emerald-600 text-white text-xs px-3 py-2 rounded-lg font-bold transition-colors"
+                    className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl font-bold transition-all"
                   >
                     Despachar ➔
                   </button>
+
                 </div>
               </div>
             );
