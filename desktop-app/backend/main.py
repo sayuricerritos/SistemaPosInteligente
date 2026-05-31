@@ -1,10 +1,12 @@
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
-import sqlite3
 import os
 import json
 from datetime import datetime
 import sys
+import atexit
+from config import Config
+from database import init_db_pool, init_database, close_db_pool, get_db_connection, execute_query
 
 # ==========================================
 # CONFIGURACIÓN DE RUTAS HÍBRIDAS (DESARROLLO / EXECUTABLE .EXE)
@@ -18,16 +20,27 @@ else:
     base_dir = os.path.dirname(os.path.abspath(__file__))
     frontend_folder = os.path.abspath(os.path.join(base_dir, '..', 'frontend', 'dist'))
 
-# Inicializamos Flask con la carpeta del Frontend unificada
+# Inicializamos Flask y cargamos el objeto centralizado de variables de entorno
 app = Flask(__name__, static_folder=frontend_folder, static_url_path='')
+app.config.from_object(Config)
 CORS(app)  # Permite que la app web externa y React se comuniquen sin bloqueos
+
+# ==========================================
+# INICIALIZACIÓN DE BASE DE DATOS EN LA NUBE (NEON)
+# ==========================================
+print("\n Iniciando Sistema POS Inteligente con Neon.tech...")
+init_db_pool()    # Enciende el Pool de conexiones (2 min / 10 máx)
+init_database()   # Crea el esquema de productos, pedidos e índices en la nube
+
+# ===== CIERRE LIMPIO DE CONEXIONES AL APAGAR =====
+atexit.register(close_db_pool)
 
 # ==========================================
 # CONFIGURACIÓN GENERAL DEL SISTEMA
 # ==========================================
 configuracion_sistema = {
     "empresa": "Cafetería UAEMéx",
-    "direccion": "📍 Cerro de Coatepec S/N, Toluca",
+    "direccion": " Cerro de Coatepec S/N, Toluca",
     "moneda": "MXN ($)",
     "iva": "16%",
     "limite_mesas": 6, 
@@ -47,15 +60,27 @@ def not_found(e):
     """Redirige cualquier ruta rota del frontend hacia React"""
     return send_from_directory(app.static_folder, 'index.html')
 
-# (De aquí para abajo continúa todo tu código de recetas, productos, mesas, etc., idéntico...)
+# ==========================================
+# ENDPOINT ADICIONAL: TEST DE CONEXIÓN REAL A LA NUBE
+# ==========================================
+@app.route('/api/test', methods=['GET'])
+def test_connection():
+    """Verifica de forma rápida si el Backend responde leyendo Neon"""
+    try:
+        productos = execute_query("SELECT COUNT(*) as total FROM productos")
+        return jsonify({
+            'status': 'ok',
+            'database': 'PostgreSQL (Neon.tech)',
+            'productos_count': productos[0]['total']
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
-def get_db_connection():
-    """Establece una conexión segura y absoluta con el archivo consolidado de SQLite"""
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    db_path = os.path.join(base_dir, 'pos_inteligente.db')
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    return conn
+# Declaración global de mesas activas en memoria para control de piso
+mesas_activas = {}
+
+#  código de recetas, productos, mesas, etcs
+
 
 # Declaración global de mesas activas en memoria para control de piso
 mesas_activas = {}
@@ -861,11 +886,11 @@ def recibir_pedido_web():
         conn.commit()
         conn.close()
 
-        print(f"📦 [BD SUCCESS] ¡Pedido Web de {cliente} guardado directamente en la cola de producción!")
+        print(f" [BD SUCCESS] ¡Pedido Web de {cliente} guardado directamente en la cola de producción!")
         return jsonify({"status": "success", "message": "Pedido encolado en cocina"}), 200
 
     except Exception as e:
-        print("❌ Error crítico al procesar pedido web:", str(e))
+        print(" Error crítico al procesar pedido web:", str(e))
         return jsonify({"status": "error", "message": str(e)}), 500
    
 @app.route('/api/administracion/resumen-hoy', methods=['GET'])
@@ -897,7 +922,7 @@ def obtener_resumen_hoy():
         }), 200
         
     except Exception as e:
-        print("❌ Error al calcular resumen diario:", str(e))
+        print(" Error al calcular resumen diario:", str(e))
         return jsonify({"monto_ventas": 0.0, "tickets_emitidos": 0, "ticket_promedio": 0.0}), 500    
 
 if __name__ == '__main__':

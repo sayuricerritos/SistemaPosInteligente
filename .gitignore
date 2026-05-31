@@ -1,17 +1,25 @@
-# Python carpetas de entorno
-__pycache__/
-*.pyc
-.venv/
-venv/
-
-# Node / React dependencias
-node_modules/
-dist/
-
-# Base de Datos Local 
-desktop-app/backend/database/*.db
 
 # Archivos temporales del sistema
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Archivos de entorno (NUNCA SUBIR A GITHUB)
+.env
+.env.local
+.env.production
+
+# Bases de datos locales antiguas
+*.db
+*.sqlite
+*.sqlite3
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+env/
+
+# Dependencias de Node
+node_modules/
