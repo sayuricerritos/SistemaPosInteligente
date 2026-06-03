@@ -1,236 +1,235 @@
 """
-Gestor de conexiones PostgreSQL con pooling
-Migración desde SQLite a Neon.tech
+database.py -- SQLite3 local
+=============================
+CAMBIOS:
+  - Seed de 8 mesas al arrancar si la tabla esta vacia.
+  - usuarios: nueva columna 'nombre_usuario TEXT UNIQUE' separada de 'nombre'.
+    'nombre' = nombre completo del trabajador (Alexis Castro).
+    'nombre_usuario' = credencial de login unica (alexis.castro).
+  - Migration defensiva: agrega nombre_usuario a BD existentes.
+  - Seed Admin usa nombre_usuario='Admin'.
 """
 
-import psycopg2
-from psycopg2 import pool, extras, Error
+import os
+import sys
+import sqlite3
 from contextlib import contextmanager
-from config import Config
 
-# Pool de conexiones global
-connection_pool = None
+if getattr(sys, 'frozen', False):
+    _BASE_DIR = os.path.dirname(sys.executable)
+else:
+    _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-def init_db_pool():
-    """
-    Inicializa el pool de conexiones a PostgreSQL
-    Se ejecuta al arrancar la aplicación
-    """
-    global connection_pool
-    
-    try:
-        connection_pool = psycopg2.pool.SimpleConnectionPool(
-            Config.DB_POOL_MIN_CONN,
-            Config.DB_POOL_MAX_CONN,
-            Config.DATABASE_URL,
-            cursor_factory=extras.RealDictCursor  # Retorna dicts en vez de tuplas
-        )
-        
-        if connection_pool:
-            print("Pool de conexiones PostgreSQL inicializado")
-            print(f"  Conexiones: {Config.DB_POOL_MIN_CONN} mín / {Config.DB_POOL_MAX_CONN} máx")
-            
-            # Test de conexión
-            with get_db_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute("SELECT version();")
-                version = cursor.fetchone()
-                print(f"   PostgreSQL: {version['version'].split(',')[0]}")
-            
-            return connection_pool
-        else:
-            raise Exception("No se pudo crear el pool de conexiones")
-            
-    except Error as e:
-        print(f" Error inicializando pool de PostgreSQL: {e}")
-        print(f"    Verifica tu DATABASE_URL en .env")
-        raise
+DB_PATH = os.path.join(_BASE_DIR, 'pos_inteligente.db')
+
 
 @contextmanager
 def get_db_connection():
-    """
-    Context manager para obtener conexión del pool
-    
-    Uso:
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT * FROM productos")
-            productos = cursor.fetchall()
-    
-    Maneja automáticamente:
-    - Obtener conexión del pool
-    - Commit si no hay errores
-    - Rollback si hay excepciones
-    - Devolver conexión al pool
-    """
-    if not connection_pool:
-        raise Exception("Pool no inicializado. Ejecuta init_db_pool() primero")
-    
-    conn = connection_pool.getconn()
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
     try:
         yield conn
         conn.commit()
-    except Exception as e:
+    except Exception:
         conn.rollback()
-        print(f" Error en transacción: {e}")
         raise
     finally:
-        connection_pool.putconn(conn)
+        conn.close()
 
-def execute_query(query, params=None, fetch=True):
-    """
-    Ejecuta query con manejo automático de conexiones
-    
-    Args:
-        query (str): SQL query con placeholders %s
-        params (tuple): Parámetros para el query
-        fetch (bool): Si True, retorna resultados. Si False, solo ejecuta.
-    
-    Returns:
-        list[dict]: Resultados si fetch=True
-        int: Número de filas afectadas si fetch=False
-    
-    Ejemplo SELECT:
-        productos = execute_query(
-            "SELECT * FROM productos WHERE categoria = %s",
-            ('Bebidas',)
-        )
-    
-    Ejemplo INSERT:
-        execute_query(
-            "INSERT INTO productos (nombre, precio) VALUES (%s, %s)",
-            ('Café Latte', 45.00),
-            fetch=False
-        )
-    """
+
+def execute_query(query, params=None):
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(query, params or ())
-        
-        if fetch:
-            results = cursor.fetchall()
-            # Convertir RealDictRow a dict estándar para JSON
-            return [dict(row) for row in results]
-        else:
-            return cursor.rowcount
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def execute_write(query, params=None):
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(query, params or ())
+
+
+_PRODUCTOS_SEED = [
+    ('Cafe Americano',     35.0, 'Bebidas Calientes'),
+    ('Cafe Latte',         45.0, 'Bebidas Calientes'),
+    ('Cappuccino',         45.0, 'Bebidas Calientes'),
+    ('Chocolate Caliente', 40.0, 'Bebidas Calientes'),
+    ('Te de Manzanilla',   30.0, 'Bebidas Calientes'),
+    ('Frappe de Cafe',     55.0, 'Bebidas Frias'),
+    ('Limonada Fresca',    35.0, 'Bebidas Frias'),
+    ('Agua de Jamaica',    30.0, 'Bebidas Frias'),
+    ('Jugo de Naranja',    40.0, 'Bebidas Frias'),
+    ('Smoothie Mixto',     50.0, 'Bebidas Frias'),
+    ('Cuernito',           18.0, 'Panaderia'),
+    ('Pan de Chocolate',   22.0, 'Panaderia'),
+    ('Muffin de Arandano', 25.0, 'Panaderia'),
+    ('Croissant',          28.0, 'Panaderia'),
+    ('Dona Glaseada',      20.0, 'Panaderia'),
+    ('Sandwich de Jamon',  65.0, 'Alimentos'),
+    ('Avena con Fruta',    45.0, 'Alimentos'),
+    ('Ensalada Cesar',     75.0, 'Alimentos'),
+    ('Molletes',           55.0, 'Alimentos'),
+    ('Quesadilla',         60.0, 'Alimentos'),
+]
+
+
+def _migration_add_column(cursor, table, column_def):
+    cursor.execute(f"PRAGMA table_info({table})")
+    cols = [row['name'] for row in cursor.fetchall()]
+    col_name = column_def.split()[0]
+    if col_name not in cols:
+        cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column_def};")
+        print(f"[DB] Migration: {table}.{col_name} agregada.")
+
 
 def init_database():
-    """
-    Crea el esquema de base de datos si no existe
-    Se ejecuta al arrancar la aplicación
-    """
-    
-    schema = """
-    -- ================================================
-    -- TABLA: productos
-    -- ================================================
-    CREATE TABLE IF NOT EXISTS productos (
-        id SERIAL PRIMARY KEY,
-        nombre VARCHAR(100) NOT NULL,
-        precio DECIMAL(10,2) NOT NULL CHECK (precio >= 0),
-        categoria VARCHAR(50),
-        stock INTEGER DEFAULT 0 CHECK (stock >= 0),
-        imagen_url TEXT,
-        activo BOOLEAN DEFAULT TRUE,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-    
-    -- ================================================
-    -- TABLA: pedidos
-    -- ================================================
-    CREATE TABLE IF NOT EXISTS pedidos (
-        id SERIAL PRIMARY KEY,
-        cliente_nombre VARCHAR(100),
-        cliente_mesa VARCHAR(20),
-        cliente_telefono VARCHAR(15),
-        total DECIMAL(10,2) NOT NULL CHECK (total >= 0),
-        estado VARCHAR(20) DEFAULT 'pendiente' CHECK (estado IN ('pendiente', 'preparando', 'listo', 'entregado', 'cancelado')),
-        notas TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-    
-    -- ================================================
-    -- TABLA: pedido_items
-    -- ================================================
-    CREATE TABLE IF NOT EXISTS pedido_items (
-        id SERIAL PRIMARY KEY,
-        pedido_id INTEGER NOT NULL REFERENCES pedidos(id) ON DELETE CASCADE,
-        producto_id INTEGER NOT NULL REFERENCES productos(id),
-        cantidad INTEGER NOT NULL CHECK (cantidad > 0),
-        precio_unitario DECIMAL(10,2) NOT NULL CHECK (precio_unitario >= 0),
-        subtotal DECIMAL(10,2) NOT NULL CHECK (subtotal >= 0)
-    );
-    
-    -- ================================================
-    -- ÍNDICES para mejorar performance
-    -- ================================================
-    CREATE INDEX IF NOT EXISTS idx_pedidos_estado ON pedidos(estado);
-    CREATE INDEX IF NOT EXISTS idx_pedidos_fecha ON pedidos(created_at DESC);
-    CREATE INDEX IF NOT EXISTS idx_productos_categoria ON productos(categoria);
-    CREATE INDEX IF NOT EXISTS idx_productos_activo ON productos(activo);
-    CREATE INDEX IF NOT EXISTS idx_pedido_items_pedido ON pedido_items(pedido_id);
-    
-    -- ================================================
-    -- TRIGGER para actualizar updated_at automáticamente
-    -- ================================================
-    CREATE OR REPLACE FUNCTION update_updated_at_column()
-    RETURNS TRIGGER AS $$
-    BEGIN
-        NEW.updated_at = CURRENT_TIMESTAMP;
-        RETURN NEW;
-    END;
-    $$ LANGUAGE plpgsql;
-    
-    DROP TRIGGER IF EXISTS update_productos_updated_at ON productos;
-    CREATE TRIGGER update_productos_updated_at
-        BEFORE UPDATE ON productos
-        FOR EACH ROW
-        EXECUTE FUNCTION update_updated_at_column();
-    
-    DROP TRIGGER IF EXISTS update_pedidos_updated_at ON pedidos;
-    CREATE TRIGGER update_pedidos_updated_at
-        BEFORE UPDATE ON pedidos
-        FOR EACH ROW
-        EXECUTE FUNCTION update_updated_at_column();
-    """
-    
-    try:
-        execute_query(schema, fetch=False)
-        print(" Esquema de base de datos verificado/creado")
-        
-        # Insertar datos de prueba si la tabla está vacía
-        count = execute_query("SELECT COUNT(*) as count FROM productos")[0]['count']
-        
-        if count == 0:
-            print("📦 Insertando productos de ejemplo...")
-            productos_ejemplo = [
-                ('Café Americano', 35.00, 'Bebidas Calientes', 100),
-                ('Café Latte', 45.00, 'Bebidas Calientes', 100),
-                ('Cappuccino', 45.00, 'Bebidas Calientes', 100),
-                ('Frappé de Vainilla', 55.00, 'Bebidas Frías', 80),
-                ('Croissant', 40.00, 'Panadería', 50),
-                ('Muffin de Arándanos', 38.00, 'Panadería', 50),
-            ]
-            
-            for nombre, precio, cat, stock in productos_ejemplo:
-                execute_query(
-                    "INSERT INTO productos (nombre, precio, categoria, stock) VALUES (%s, %s, %s, %s)",
-                    (nombre, precio, cat, stock),
-                    fetch=False
-                )
-            print(f" {len(productos_ejemplo)} productos insertados")
-        
-    except Exception as e:
-        print(f"❌ Error creando esquema: {e}")
-        raise
+    from werkzeug.security import generate_password_hash
 
-def close_db_pool():
-    """
-    Cierra todas las conexiones del pool
-    Se ejecuta al cerrar la aplicación
-    """
-    if connection_pool:
-        connection_pool.closeall()
-        print("✅ Pool de conexiones cerrado correctamente")
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL;")
+
+        # ---- Tablas ------------------------------------------------
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS productos (
+                id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+                nombre_producto    TEXT    NOT NULL,
+                precio_venta       REAL    NOT NULL,
+                categoria          TEXT,
+                insumos_receta     TEXT    DEFAULT '[]',
+                extras_disponibles TEXT    DEFAULT '[]'
+            );
+        """)
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS insumos (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                nombre_insumo   TEXT    NOT NULL,
+                cantidad_actual REAL    DEFAULT 0,
+                unidad_medida   TEXT    DEFAULT 'unidad',
+                stock_minimo    REAL    DEFAULT 5
+            );
+        """)
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS pedidos (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                numero_mesa TEXT,
+                subtotal    REAL    DEFAULT 0,
+                total       REAL    DEFAULT 0,
+                productos   TEXT    DEFAULT '[]',
+                estado      TEXT    DEFAULT 'En Cocina',
+                fecha       TEXT,
+                metodo_pago TEXT    DEFAULT 'Efectivo'
+            );
+        """)
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS mesas (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                numero_mesa TEXT    UNIQUE NOT NULL,
+                estado      TEXT    NOT NULL DEFAULT 'Libre',
+                capacidad   INTEGER DEFAULT 4
+            );
+        """)
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS usuarios (
+                id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                nombre           TEXT    NOT NULL,
+                nombre_usuario   TEXT    UNIQUE,
+                puesto           TEXT,
+                permisos         TEXT,
+                horas_trabajadas INTEGER DEFAULT 0,
+                pago_hora        REAL    DEFAULT 0,
+                horario          TEXT,
+                password_hash    TEXT    DEFAULT NULL
+            );
+        """)
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS gastos (
+                id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                concepto       TEXT    NOT NULL,
+                monto          REAL    NOT NULL,
+                fecha          TEXT    NOT NULL,
+                fecha_completa TEXT
+            );
+        """)
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS cortes_historicos (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                fecha         TEXT    NOT NULL,
+                efectivo      REAL    DEFAULT 0,
+                tarjeta       REAL    DEFAULT 0,
+                total_ventas  REAL    DEFAULT 0,
+                total_gastos  REAL    DEFAULT 0,
+                balance_neto  REAL    DEFAULT 0,
+                tickets       INTEGER DEFAULT 0,
+                observaciones TEXT    DEFAULT '',
+                ejecutado_at  TEXT    NOT NULL
+            );
+        """)
+
+        # ---- Migrations defensivas ---------------------------------
+        _migration_add_column(cursor, 'pedidos',  'metodo_pago TEXT DEFAULT "Efectivo"')
+        _migration_add_column(cursor, 'usuarios', 'password_hash TEXT DEFAULT NULL')
+        _migration_add_column(cursor, 'usuarios', 'nombre_usuario TEXT')
+
+        # Fix: si hay usuarios con nombre_usuario NULL (BD preexistente),
+        # copiar el campo 'nombre' como nombre_usuario para que el login funcione.
+        cursor.execute(
+            "UPDATE usuarios SET nombre_usuario = nombre "
+            "WHERE nombre_usuario IS NULL;"
+        )
+        filas_arregladas = cursor.rowcount
+        if filas_arregladas > 0:
+            print(f"[DB] Migration: {filas_arregladas} usuario(s) sin nombre_usuario corregidos.")
+
+        # ---- Seed: mesas (8 mesas si la tabla esta vacia) ----------
+        cursor.execute("SELECT COUNT(*) AS cnt FROM mesas;")
+        if cursor.fetchone()['cnt'] == 0:
+            for num in range(1, 9):
+                cursor.execute(
+                    "INSERT OR IGNORE INTO mesas (numero_mesa, estado, capacidad) "
+                    "VALUES (?, 'Libre', 4);",
+                    (str(num),),
+                )
+            print("[DB] Seed: 8 mesas creadas.")
+
+        # ---- Seed: admin -------------------------------------------
+        cursor.execute("SELECT COUNT(*) AS cnt FROM usuarios;")
+        if cursor.fetchone()['cnt'] == 0:
+            cursor.execute(
+                """
+                INSERT INTO usuarios
+                    (nombre, nombre_usuario, puesto, permisos,
+                     horas_trabajadas, pago_hora, horario, password_hash)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+                """,
+                (
+                    'Administrador General',
+                    'Admin',
+                    'Administrador',
+                    'Total',
+                    0, 0.0, '09:00 - 17:00',
+                    generate_password_hash('admin123'),
+                ),
+            )
+            print("[DB] Seed: usuario Admin / admin123.")
+
+        # ---- Seed: catalogo ----------------------------------------
+        cursor.execute("SELECT COUNT(*) AS cnt FROM productos;")
+        if cursor.fetchone()['cnt'] == 0:
+            cursor.executemany(
+                "INSERT INTO productos "
+                "(nombre_producto, precio_venta, categoria, insumos_receta, extras_disponibles) "
+                "VALUES (?, ?, ?, '[]', '[]');",
+                _PRODUCTOS_SEED,
+            )
+            print(f"[DB] Seed: {len(_PRODUCTOS_SEED)} productos.")
+
+    print(f"[DB] SQLite inicializado: {DB_PATH}")
