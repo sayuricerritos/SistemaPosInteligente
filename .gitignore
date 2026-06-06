@@ -1,25 +1,29 @@
+# Claude Code
+.claude/
 
-# Archivos temporales del sistema
-.vscode/
-.DS_Store
-Thumbs.db
+# PyInstaller build artifacts
+desktop-app/backend/build/
+desktop-app/backend/dist/
 
-# Archivos de entorno (NUNCA SUBIR A GITHUB)
-.env
-.env.local
-.env.production
+# SQLite database (runtime data)
+desktop-app/backend/pos_inteligente.db
 
-# Bases de datos locales antiguas
-*.db
-*.sqlite
-*.sqlite3
+# Binary/compiled extensions
+*.exe
+*.pkg
+*.pyz
+*.toc
+*.zip
 
-# Python
+# Python cache
 __pycache__/
 *.pyc
 *.pyo
-venv/
-env/
 
-# Dependencias de Node
+# Node / frontend build
 node_modules/
+desktop-app/frontend/dist/
+
+# OS
+.DS_Store
+Thumbs.db
