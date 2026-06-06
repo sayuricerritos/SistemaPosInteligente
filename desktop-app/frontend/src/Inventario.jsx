@@ -382,6 +382,7 @@ const handleCrearInsumo = (e) => {
           </form>
         </div>
       )}
+      <DialogoUI />
     </div>
   )
 }
