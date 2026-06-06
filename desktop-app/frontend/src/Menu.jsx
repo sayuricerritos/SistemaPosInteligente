@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
-
+import { useDialogo } from './components/Dialogo'
+import { noNeg } from './helpers/validacion'
 // ============================================================
 // ICONOS
 // ============================================================
@@ -92,6 +93,7 @@ export default function Menu() {
   const [productoExtras,     setProductoExtras]     = useState('')
   const [mostrarFormExtra,   setMostrarFormExtra]   = useState(false)
   const [formExtra,          setFormExtra]          = useState(FORM_EXTRA_VACIO)
+  const { notificar, confirmar, DialogoUI } = useDialogo()
 
   // ============================================================
   // CARGA DE DATOS
@@ -146,11 +148,11 @@ export default function Menu() {
     })
     .then(r => { if (!r.ok) throw new Error("Error del servidor"); return r.json() })
     .then(() => {
-      alert(modoEdicion ? 'Producto actualizado.' : 'Producto agregado al catalogo.')
+      notificar(modoEdicion ? 'Producto actualizado.' : 'Producto agregado al catalogo.')
       cancelarEdicion()
       cargarDatos()
     })
-    .catch(err => alert(`Error: ${err.message}`))
+    .catch(err => notificar(`Error: ${err.message}`))
   }
 
   const handleEliminarProducto = (id_producto) => {
@@ -164,7 +166,7 @@ export default function Menu() {
         setProductoAEliminar(null)
         if (modoEdicion && formProducto.id_producto_sel === id_producto) cancelarEdicion()
       })
-      .catch(err => alert(`No se pudo eliminar: ${err.message}`))
+      .catch(err => notificar(`No se pudo eliminar: ${err.message}`))
   }
 
   // ============================================================
@@ -225,8 +227,8 @@ export default function Menu() {
       body:    JSON.stringify({ id_producto: productoReceta, insumos: Object.values(recetaMap) }),
     })
     .then(r => { if (!r.ok) throw new Error("Error al guardar receta"); return r.json() })
-    .then(() => { alert("Receta vinculada con exito."); cargarDatos() })
-    .catch(err => alert(`Error: ${err.message}`))
+    .then(() => { notificar("Receta vinculada con exito."); cargarDatos() })
+    .catch(err => notificar(`Error: ${err.message}`))
   }
 
   // ============================================================
@@ -279,8 +281,8 @@ export default function Menu() {
       body:    JSON.stringify({ id_producto: productoExtras, extras: extrasLista }),
     })
     .then(r => { if (!r.ok) throw new Error("Error al guardar extras"); return r.json() })
-    .then(() => { alert("Extras guardados correctamente."); cargarDatos() })
-    .catch(err => alert(`Error: ${err.message}`))
+    .then(() => { notificar("Extras guardados correctamente."); cargarDatos() })
+    .catch(err => notificar(`Error: ${err.message}`))
   }
 
   // Insumo seleccionado para mostrar su unidad en el form de extra
@@ -358,7 +360,7 @@ export default function Menu() {
                     step="0.01"
                     required
                     value={formProducto.precio_venta}
-                    onChange={e => setFormProducto({ ...formProducto, precio_venta: e.target.value })}
+                    onChange={e => setFormProducto({ ...formProducto, precio_venta: noNeg(e.target.value) })}
                     placeholder="0.00"
                     className="w-full p-2.5 border rounded-xl bg-gray-50 text-gray-800 font-mono focus:outline-none"
                   />
@@ -536,7 +538,7 @@ export default function Menu() {
                               step="0.001"
                               min="0"
                               value={item.cantidad}
-                              onChange={e => updateCantidadReceta(insumo.id_insumo, e.target.value)}
+                              onChange={e => updateCantidadReceta(insumo.id_insumo, noNeg(e.target.value))}
                               className="w-20 p-1.5 border rounded-lg text-xs font-mono text-center text-gray-800 bg-white focus:outline-none focus:border-[#8B5A2B]"
                             />
                             <span className="text-3xs text-gray-400 font-black w-10 text-left">
@@ -736,7 +738,7 @@ export default function Menu() {
                     step="0.01"
                     min="0"
                     value={formExtra.precio}
-                    onChange={e => setFormExtra({ ...formExtra, precio: e.target.value })}
+                    onChange={e => setFormExtra({ ...formExtra, precio: noNeg(e.target.value) })}
                     placeholder="0.00"
                     className="w-full p-2.5 border rounded-xl font-mono text-gray-800 bg-gray-50 focus:outline-none"
                   />
@@ -777,7 +779,7 @@ export default function Menu() {
                         step="0.001"
                         min="0"
                         value={formExtra.cantidad_descuento}
-                        onChange={e => setFormExtra({ ...formExtra, cantidad_descuento: e.target.value })}
+                        onChange={e => setFormExtra({ ...formExtra, cantidad_descuento: noNeg(e.target.value) })}
                         placeholder="Ej. 0.015 KG, 1 Pieza, 0.250 ML"
                         className="w-full p-2.5 border rounded-xl font-mono text-gray-800 bg-gray-50 focus:outline-none"
                       />
@@ -853,6 +855,7 @@ export default function Menu() {
           </div>
         </div>
       )}
+      <DialogoUI />
     </div>
   )
 }
