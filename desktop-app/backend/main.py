@@ -11,9 +11,17 @@ import threading
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 from database import init_database
+import sys, os
+
+def _resource_path(rel):
+    base = sys._MEIPASS if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base, rel)
+
 
 # ---- Crear app Flask ----
-app = Flask(__name__, static_folder='../frontend/dist', static_url_path='/')
+
+#app = Flask(__name__, static_folder='../frontend/dist', static_url_path='/')
+app = Flask(__name__, static_folder=_resource_path('frontend_dist'), static_url_path='/')
 CORS(app)
 
 # ---- Registrar Blueprints (solo los que existen) ----

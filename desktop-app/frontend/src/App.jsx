@@ -133,20 +133,6 @@ function LoginScreen({ onLogin }) {
             {cargando ? 'Verificando...' : 'Ingresar al Sistema'}
           </button>
         </form>
- 
-        {/*
-          Las credenciales del primer arranque SOLO se muestran cuando:
-            - El usuario no ha iniciado el proceso de login (cargando = false)
-          En cuanto presiona el boton, desaparecen permanentemente del DOM.
-          Una vez autenticado, este componente se desmonta y el hint
-          nunca vuelve a existir en el arbol de React.
-        */}
-        {!cargando && (
-          <div className="border-t pt-4 text-center space-y-1">
-            <p className="text-3xs text-gray-400 font-medium">Primer arranque del sistema</p>
-            <p className="text-3xs font-black text-gray-500">Usuario: Admin / Contrasena: admin123</p>
-          </div>
-        )}
       </div>
     </div>
   )
