@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-
+import { useDialogo } from './components/Dialogo'
 const IconoMonitor = () => (
   <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
@@ -111,7 +111,7 @@ export default function Pedidos() {
                       fetch('http://127.0.0.1:5000/api/pedidos/despachar', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ numero_mesa: origen })
+                        body: JSON.stringify({ id_pedido: pedido.id_pedido, numero_mesa: origen })
                       })
                       .then(res => { if (!res.ok) throw new Error('Error al despachar'); return res.json(); })
                       .then(() => { alert(`Orden de ${origen} despachada con exito.`); obtenerPedidos(); })

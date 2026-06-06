@@ -233,6 +233,68 @@ def despachar_pedido_cocina():
         return jsonify({"error": str(e)}), 500
 
 
+@pedidos_bp.route('/api/pedidos/venta-directa', methods=['POST'])
+def registrar_venta_directa():
+    """
+    Registra una venta de mostrador (Para Llevar) en un solo paso:
+      1. Inserta el pedido como Completado con metodo_pago correcto.
+      2. Descuenta inventario (receta + extras) igual que despachar.
+    Llamado por Llevar.jsx en lugar de /api/mesas/cerrar.
+    """
+    data        = request.get_json(force=True, silent=True) or {}
+    productos   = data.get('productos', []) or []
+    total       = float(data.get('total', 0) or 0)
+    metodo_pago = data.get('metodo_pago', 'Efectivo')
+    fecha_hoy   = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    if not productos:
+        return jsonify({"error": "La venta no tiene productos"}), 400
+
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+
+            cursor.execute(
+                "INSERT INTO pedidos "
+                "(numero_mesa, subtotal, total, productos, estado, fecha, metodo_pago) "
+                "VALUES (?, ?, ?, ?, 'Completado', ?, ?);",
+                ("LLEVAR / MOSTRADOR", total, total,
+                 json.dumps(productos), fecha_hoy, metodo_pago),
+            )
+
+            for prod in productos:
+                nombre_p   = prod.get('nombre_producto') or prod.get('nombre', '')
+                cantidad_v = int(prod.get('cantidad', 1))
+
+                cursor.execute(
+                    "SELECT insumos_receta FROM productos WHERE nombre_producto = ?;",
+                    (nombre_p,),
+                )
+                receta_row = cursor.fetchone()
+                if receta_row and receta_row['insumos_receta']:
+                    for item in _parsear_receta(receta_row['insumos_receta']):
+                        id_ins    = item.get('id_insumo')
+                        qty_base  = float(item.get('cantidad', 1))
+                        qty_total = qty_base * cantidad_v
+                        cursor.execute(
+                            "UPDATE insumos "
+                            "SET cantidad_actual = MAX(0, cantidad_actual - ?) "
+                            "WHERE id = ?;",
+                            (qty_total, id_ins),
+                        )
+
+                extras_lista  = prod.get('extrasSeleccionados', [])
+                extras_config = _cargar_extras_config(cursor, nombre_p)
+                if extras_lista:
+                    _procesar_extras(cursor, extras_lista, extras_config)
+
+        print(f"[VENTA DIRECTA] {len(productos)} productos, total ${total}, pago: {metodo_pago}")
+        return jsonify({"mensaje": "Venta registrada e inventario actualizado"}), 200
+    except Exception as e:
+        print(f"[VENTA DIRECTA ERROR]: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 @pedidos_bp.route('/api/pedidos/web', methods=['POST'])
 def recibir_pedido_web():
     try:

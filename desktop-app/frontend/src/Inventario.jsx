@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
-
+import { useDialogo } from './components/Dialogo'
+import { noNeg } from './helpers/validacion'
 const IconoAlerta = ({ className = 'w-3 h-3' }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
@@ -43,6 +44,7 @@ export default function Inventario() {
   const [cantidadInput, setCantidadInput] = useState('')
   const [formNuevo,     setFormNuevo]     = useState(FORM_NUEVO_INSUMO)
   const [guardandoNuevo, setGuardandoNuevo] = useState(false)
+  const { notificar, confirmar, DialogoUI } = useDialogo()
 
 const cargarInsumos = () => {
   setLoading(true)
@@ -92,7 +94,7 @@ const handleProcesarAjuste = (e) => {
     setMostrarAjuste(false)
     setInsumoSel(null)
   })
-  .catch(err => alert(`Error al ajustar inventario: ${err.message}`))
+  .catch(err => notificar(`Error al ajustar inventario: ${err.message}`))
 }
 
 const handleCrearInsumo = (e) => {
@@ -113,12 +115,12 @@ const handleCrearInsumo = (e) => {
     return res.json()
   })
   .then(d => {
-    if (d.error) { alert(`Error: ${d.error}`); return }
+    if (d.error) { notificar(`Error: ${d.error}`); return }
     cargarInsumos()
     setMostrarNuevo(false)
     setFormNuevo(FORM_NUEVO_INSUMO)
   })
-  .catch(err => alert(`Error al crear insumo: ${err.message}`))
+  .catch(err => notificar(`Error al crear insumo: ${err.message}`))
   .finally(() => setGuardandoNuevo(false))
 }
 
@@ -253,7 +255,7 @@ const handleCrearInsumo = (e) => {
                 required
                 autoFocus
                 value={cantidadInput}
-                onChange={e => setCantidadInput(e.target.value)}
+                onChange={e => setCantidadInput(noNeg(e.target.value, cantidadInput))}
                 placeholder={`0.000 ${insumoSel.unidad_medida}`}
                 className="w-full p-3 border rounded-xl font-mono text-center font-black text-gray-800 text-base bg-gray-50 focus:outline-none"
               />
@@ -321,7 +323,7 @@ const handleCrearInsumo = (e) => {
                   min="0"
                   required
                   value={formNuevo.cantidad_actual}
-                  onChange={e => setFormNuevo({ ...formNuevo, cantidad_actual: e.target.value })}
+                  onChange={e => setFormNuevo({ ...formNuevo, cantidad_actual: noNeg(e.target.value, formNuevo.cantidad_actual) })}
                   placeholder="0.000"
                   className="w-full p-2.5 border rounded-xl font-mono text-gray-800 bg-gray-50 focus:outline-none"
                 />
@@ -347,7 +349,7 @@ const handleCrearInsumo = (e) => {
                 step="0.001"
                 min="0"
                 value={formNuevo.stock_minimo}
-                onChange={e => setFormNuevo({ ...formNuevo, stock_minimo: e.target.value })}
+                onChange={e => setFormNuevo({ ...formNuevo, stock_minimo: noNeg(e.target.value, formNuevo.stock_minimo) })}
                 placeholder="5"
                 className="w-full p-2.5 border rounded-xl font-mono text-gray-800 bg-gray-50 focus:outline-none"
               />
