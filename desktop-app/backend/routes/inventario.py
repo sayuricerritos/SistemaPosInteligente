@@ -13,6 +13,7 @@ CORRECCIONES:
 
 from flask import Blueprint, jsonify, request
 from database import get_db_connection
+from routes.decoradores import requiere_admin
 
 inventario_bp = Blueprint('inventario', __name__)
 
@@ -42,7 +43,8 @@ def obtener_inventario():
 
 
 @inventario_bp.route('/api/inventario/nuevo', methods=['POST'])
-def crear_insumo():
+@requiere_admin
+def crear_insumo(usuario_sesion):
     """
     Alta de nuevo insumo. La columna 'id' es AUTOINCREMENT: no se especifica
     en el INSERT. Se retorna el nuevo registro con 'id AS id_insumo'.
@@ -75,7 +77,8 @@ def crear_insumo():
 
 
 @inventario_bp.route('/api/inventario/ajustar', methods=['POST'])
-def ajustar_inventario():
+@requiere_admin
+def ajustar_inventario(usuario_sesion):
     """
     Ajuste manual de stock. Acepta fracciones (ENTRADA o MERMA).
     El campo id_insumo del body corresponde al alias; WHERE usa 'id = ?'.
