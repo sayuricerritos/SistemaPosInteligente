@@ -83,6 +83,7 @@ export default function Mesas() {
   const [mostrarModalPersonalizar, setMostrarModalPersonalizar] = useState(false);
   const [mesaSeleccionada, setMesaSeleccionada]         = useState(null);
   const [numMesaSeleccionada, setNumMesaSeleccionada]   = useState('');
+  const [capacidadMesaSeleccionada, setCapacidadMesaSeleccionada] = useState(4);
   const [comensalesInput, setComensalesInput]           = useState('1');
   const [meseroInput, setMeseroInput]                   = useState('');
   const [comandaSesion, setComandaSesion]               = useState([]);
@@ -145,6 +146,7 @@ export default function Mesas() {
       setComandaSesion([]);
     } else {
       setNumMesaSeleccionada(String(m.numero_mesa));
+      setCapacidadMesaSeleccionada(m.capacidad || 4);
       setComensalesInput('1');
       setMostrarModalApertura(true);
     }
@@ -395,9 +397,9 @@ export default function Mesas() {
             <h3 className="text-base font-black text-gray-800 border-b pb-1">Abrir Servicio: Mesa {numMesaSeleccionada}</h3>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block mb-1 text-3xs uppercase tracking-wider text-gray-400">Comensales:</label>
-                <input type="number" required value={comensalesInput} 
-                onChange={e => setComensalesInput(e.target.value)} min="1" max="5"
+                <label className="block mb-1 text-3xs uppercase tracking-wider text-gray-400">Comensales (máx. {capacidadMesaSeleccionada}):</label>
+                <input type="number" required value={comensalesInput}
+                onChange={e => setComensalesInput(e.target.value)} min="1" max={capacidadMesaSeleccionada}
                  className="w-full p-2.5 border rounded-xl font-medium text-gray-800 bg-gray-50 focus:outline-none" />
               </div>
               <div>
