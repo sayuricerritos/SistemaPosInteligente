@@ -74,7 +74,7 @@ const FORM_EXTRA_VACIO = {
 // ============================================================
 // COMPONENTE PRINCIPAL
 // ============================================================
-export default function Menu({ usuario }) {
+export default function Menu({ usuario, onSessionError }) {
   const [productos,          setProductos]          = useState([])
   const [insumos,            setInsumos]            = useState([])
   const [subPestana,         setSubPestana]         = useState('General')
@@ -103,12 +103,12 @@ export default function Menu({ usuario }) {
   // CARGA DE DATOS
   // ============================================================
   const cargarDatos = () => {
-    apiFetch('http://127.0.0.1:5000/api/productos', {}, usuario)
+    apiFetch('http://127.0.0.1:5000/api/productos', {}, usuario, onSessionError)
       .then(r => r.json())
       .then(d => setProductos(Array.isArray(d) ? d : []))
       .catch(e => console.error("[MENU] Error productos:", e))
 
-    apiFetch('http://127.0.0.1:5000/api/inventario', {}, usuario)
+    apiFetch('http://127.0.0.1:5000/api/inventario', {}, usuario, onSessionError)
       .then(r => r.json())
       .then(d => setInsumos(Array.isArray(d) ? d : []))
       .catch(e => console.error("[MENU] Error insumos:", e))
@@ -150,7 +150,7 @@ export default function Menu({ usuario }) {
     apiFetch(url, {
       method:  metodo,
       body:    JSON.stringify(body),
-    }, usuario)
+    }, usuario, onSessionError)
     .then(r => { if (!r.ok) throw new Error("Error del servidor"); return r.json() })
     .then(() => {
       notificar(modoEdicion ? 'Producto actualizado.' : 'Producto agregado al catalogo.')
@@ -162,7 +162,7 @@ export default function Menu({ usuario }) {
   }
 
   const handleEliminarProducto = (id_producto) => {
-    apiFetch(`http://127.0.0.1:5000/api/productos/${id_producto}`, { method: 'DELETE' }, usuario)
+    apiFetch(`http://127.0.0.1:5000/api/productos/${id_producto}`, { method: 'DELETE' }, usuario, onSessionError)
       .then(r => {
         if (!r.ok) return r.json().then(d => { throw new Error(d.error || `Error ${r.status}`) })
         return r.json()
@@ -232,7 +232,7 @@ export default function Menu({ usuario }) {
     apiFetch('http://127.0.0.1:5000/api/productos/guardar-receta', {
       method:  'POST',
       body:    JSON.stringify({ id_producto: productoReceta, insumos: Object.values(recetaMap) }),
-    }, usuario)
+    }, usuario, onSessionError)
     .then(r => { if (!r.ok) throw new Error("Error al guardar receta"); return r.json() })
     .then(() => { notificar("Receta vinculada con exito."); cargarDatos() })
     .catch(err => notificar(`Error: ${err.message}`))
@@ -288,7 +288,7 @@ export default function Menu({ usuario }) {
     apiFetch('http://127.0.0.1:5000/api/productos/guardar-extras', {
       method:  'POST',
       body:    JSON.stringify({ id_producto: productoExtras, extras: extrasLista }),
-    }, usuario)
+    }, usuario, onSessionError)
     .then(r => { if (!r.ok) throw new Error("Error al guardar extras"); return r.json() })
     .then(() => { notificar("Extras guardados correctamente."); cargarDatos() })
     .catch(err => notificar(`Error: ${err.message}`))

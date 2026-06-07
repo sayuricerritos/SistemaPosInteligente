@@ -35,7 +35,7 @@ const FORM_NUEVO_INSUMO = {
   stock_minimo: '5',
 }
 
-export default function Inventario({ usuario }) {
+export default function Inventario({ usuario, onSessionError }) {
   const [insumos,       setInsumos]       = useState([])
   const [loading,       setLoading]       = useState(true)
   const [mostrarAjuste, setMostrarAjuste] = useState(false)
@@ -50,7 +50,7 @@ export default function Inventario({ usuario }) {
 
 const cargarInsumos = () => {
   setLoading(true)
-  apiFetch('http://127.0.0.1:5000/api/inventario', {}, usuario)
+  apiFetch('http://127.0.0.1:5000/api/inventario', {}, usuario, onSessionError)
     .then(res => {
       if (!res.ok) throw new Error(`Error del servidor: ${res.status}`)
       return res.json()
@@ -87,7 +87,7 @@ const handleProcesarAjuste = (e) => {
       cantidad:  parseFloat(cantidadInput),
       tipo:      tipoAjuste,
     }),
-  }, usuario)
+  }, usuario, onSessionError)
   .then(res => {
     if (!res.ok) throw new Error(`Error del servidor: ${res.status}`)
     return res.json()
@@ -112,7 +112,7 @@ const handleCrearInsumo = (e) => {
       unidad_medida:   formNuevo.unidad_medida,
       stock_minimo:    parseFloat(formNuevo.stock_minimo) || 5,
     }),
-  }, usuario)
+  }, usuario, onSessionError)
   .then(res => {
     if (!res.ok) throw new Error(`Error del servidor: ${res.status}`)
     return res.json()

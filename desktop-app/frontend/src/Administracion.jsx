@@ -33,7 +33,7 @@ const IconoTicket = () => (
   </svg>
 )
 
-export default function Administracion({ usuario }) {
+export default function Administracion({ usuario, onSessionError }) {
   // Estado base con ceros explicitos garantiza que .toFixed(2) nunca
   // actue sobre undefined durante el primer ciclo de renderizado.
   const CORTE_VACIO = {
@@ -60,23 +60,23 @@ export default function Administracion({ usuario }) {
   const { notificar, confirmar, DialogoUI } = useDialogo()
 
   const cargarDatosAdministrativos = () => {
-    apiFetch(`http://127.0.0.1:5000/api/administracion/gastos`, {}, usuario)
+    apiFetch(`http://127.0.0.1:5000/api/administracion/gastos`, {}, usuario, onSessionError)
       .then(r => r.json())
       .then(d => setGastos(Array.isArray(d) ? d : []))
       .catch(e => console.error("Error gastos:", e));
 
-    apiFetch(`http://127.0.0.1:5000/api/administracion/corte-diario?fecha=${fechaFiltro}`, {}, usuario)
+    apiFetch(`http://127.0.0.1:5000/api/administracion/corte-diario?fecha=${fechaFiltro}`, {}, usuario, onSessionError)
       .then(r => r.json())
       .then(d => { if (!d.error) setCorte({ ...CORTE_VACIO, ...d }) })
       .catch(e => console.error("Error corte:", e));
 
-    apiFetch(`http://127.0.0.1:5000/api/administracion/tickets?fecha=${fechaFiltro}`, {}, usuario)
+    apiFetch(`http://127.0.0.1:5000/api/administracion/tickets?fecha=${fechaFiltro}`, {}, usuario, onSessionError)
       .then(r => r.json())
       .then(d => setTickets(Array.isArray(d) ? d : []))
       .catch(e => console.error("Error tickets:", e));
 
     setCargandoCorteHistorico(true)
-    apiFetch(`http://127.0.0.1:5000/api/administracion/cortes-historicos/fecha/${fechaFiltro}`, {}, usuario)
+    apiFetch(`http://127.0.0.1:5000/api/administracion/cortes-historicos/fecha/${fechaFiltro}`, {}, usuario, onSessionError)
       .then(r => r.json())
       .then(d => {
         if (d.existe && d.corte) {
@@ -102,7 +102,7 @@ export default function Administracion({ usuario }) {
     apiFetch('http://127.0.0.1:5000/api/administracion/gastos', {
       method:  'POST',
       body:    JSON.stringify({ concepto, monto: parseFloat(montoGasto) }),
-    }, usuario)
+    }, usuario, onSessionError)
     .then(() => {
       setConcepto('');
       setMontoGasto('');
@@ -119,7 +119,7 @@ export default function Administracion({ usuario }) {
       const r = await apiFetch('http://127.0.0.1:5000/api/administracion/ejecutar-corte', {
         method:  'POST',
         body:    JSON.stringify({ fecha: fechaFiltro }),
-      }, usuario)
+      }, usuario, onSessionError)
       const d = await r.json()
       if (r.status === 409) {
         notificar('Ya existe un corte de caja para esta fecha.', 'error')

@@ -47,7 +47,7 @@ const FORM_INICIAL = {
   contrasena: '',
 }
 
-export default function Usuarios({ usuario }) {
+export default function Usuarios({ usuario, onSessionError }) {
   const [usuarios, setUsuarios]         = useState([])
   const [mostrarModal, setMostrarModal] = useState(false)
   const [loading, setLoading]           = useState(true)
@@ -59,7 +59,7 @@ export default function Usuarios({ usuario }) {
 
   const cargarPersonal = () => {
     setLoading(true)
-    apiFetch('http://127.0.0.1:5000/api/usuarios', {}, usuario)
+    apiFetch('http://127.0.0.1:5000/api/usuarios', {}, usuario, onSessionError)
       .then(res => {
         if (!res.ok) throw new Error(`Error ${res.status}`)
         return res.json()
@@ -96,7 +96,7 @@ export default function Usuarios({ usuario }) {
       return
     }
     if (!await confirmar('Confirmar la baja definitiva de este colaborador?')) return
-    apiFetch(`http://127.0.0.1:5000/api/usuarios/${id}`, { method: 'DELETE' }, usuario)
+    apiFetch(`http://127.0.0.1:5000/api/usuarios/${id}`, { method: 'DELETE' }, usuario, onSessionError)
       .then(res => {
         if (!res.ok) return res.json().then(d => { throw new Error(d.error || `Error ${res.status}`) })
         return res.json()
@@ -121,7 +121,7 @@ export default function Usuarios({ usuario }) {
     apiFetch('http://127.0.0.1:5000/api/usuarios/guardar', {
       method:  'POST',
       body:    JSON.stringify(formStaff),
-    }, usuario)
+    }, usuario, onSessionError)
     .then(res => {
       if (!res.ok) return res.json().then(d => { throw new Error(d.error || `Error ${res.status}`) })
       return res.json()
