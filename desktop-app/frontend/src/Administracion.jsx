@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import IAPredictiva from './IAPredictiva';
+import { useDialogo } from './components/Dialogo'
 
 // Iconos SVG inline
 const IconoTendenciaBaja = () => (
@@ -53,6 +54,7 @@ export default function Administracion() {
   const [montoGasto,    setMontoGasto]    = useState('');
   const [ejecutando,    setEjecutando]    = useState(false);
   const [mensajeCorte,  setMensajeCorte]  = useState(null);
+  const { notificar, confirmar, DialogoUI } = useDialogo()
 
   const cargarDatosAdministrativos = () => {
     fetch(`http://127.0.0.1:5000/api/administracion/gastos`)
@@ -90,28 +92,38 @@ export default function Administracion() {
     });
   };
 
-  const handleEjecutarCorte = () => {
-    if (!window.confirm(`Ejecutar y persistir el corte de caja para ${fechaFiltro}?`)) return;
-    setEjecutando(true);
-    setMensajeCorte(null);
-    fetch('http://127.0.0.1:5000/api/administracion/ejecutar-corte', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ fecha: fechaFiltro }),
-    })
-    .then(r => r.json())
-    .then(d => {
-      if (d.error) { alert(`Error al ejecutar corte: ${d.error}`); return }
+  const handleEjecutarCorte = async () => {
+    const ok = await confirmar(`Ejecutar y persistir el corte de caja para ${fechaFiltro}?`)
+    if (!ok) return
+    setEjecutando(true)
+    setMensajeCorte(null)
+    try {
+      const r = await fetch('http://127.0.0.1:5000/api/administracion/ejecutar-corte', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ fecha: fechaFiltro }),
+      })
+      const d = await r.json()
+      if (r.status === 409) {
+        notificar('Ya existe un corte de caja para esta fecha.', 'error')
+        return
+      }
+      if (d.error) {
+        notificar(`Error al ejecutar corte: ${d.error}`, 'error')
+        return
+      }
       setMensajeCorte({
-        tipo:    'exito',
-        texto:   `Corte del ${d.fecha} persistido. Balance: $${d.balance_neto.toFixed(2)} | Tickets: ${d.tickets}`,
-        tiempo:  d.ejecutado_at,
-      });
-      cargarDatosAdministrativos();
-    })
-    .catch(() => alert('Error de conexion al ejecutar corte.'))
-    .finally(() => setEjecutando(false));
-  };
+        tipo:   'exito',
+        texto:  `Corte del ${d.fecha} persistido. Balance: $${d.balance_neto.toFixed(2)} | Tickets: ${d.tickets}`,
+        tiempo: d.ejecutado_at,
+      })
+      cargarDatosAdministrativos()
+    } catch {
+      notificar('Error de conexion al ejecutar corte.', 'error')
+    } finally {
+      setEjecutando(false)
+    }
+  }
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen text-xs font-bold text-gray-500 space-y-5">
@@ -333,6 +345,7 @@ export default function Administracion() {
           <IAPredictiva />
         </div>
       )}
+      <DialogoUI />
     </div>
   );
 }
