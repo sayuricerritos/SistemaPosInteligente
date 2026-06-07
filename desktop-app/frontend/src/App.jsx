@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
+import { useDialogo } from './components/Dialogo'
 import Llevar        from './Llevar'
 import Mesas         from './Mesas'
 import Menu          from './Menu'
@@ -166,11 +167,28 @@ function App() {
   const [metricasHoy, setMetricasHoy] = useState({ monto_ventas: 0, tickets_emitidos: 0, ticket_promedio: 0 })
   const [balanceHoy,  setBalanceHoy]  = useState({ total_ventas: 0, total_gastos: 0, balance_neto: 0 })
 
+  const { notificar, DialogoUI } = useDialogo()
+  const sessionErrorDispatched = useRef(false)
+
   const esAdmin = usuario?.permisos === 'Total' || usuario?.puesto === 'Administrador'
 
   const handleLogout = () => {
     setUsuario(null)
     setVistaActual('INICIO')
+  }
+
+  const handleSessionError = (tipo) => {
+    if (tipo === 'unauthorized') {
+      if (sessionErrorDispatched.current) return
+      sessionErrorDispatched.current = true
+      notificar('Tu sesión ha expirado. Vuelve a iniciar sesión.', 'error')
+      setTimeout(() => {
+        handleLogout()
+        sessionErrorDispatched.current = false
+      }, 1500)
+    } else if (tipo === 'forbidden') {
+      notificar('No tienes permisos para realizar esta acción.', 'error')
+    }
   }
 
   useEffect(() => {
@@ -376,11 +394,11 @@ function App() {
 
               {vistaActual === 'LLEVAR'          && <Llevar />}
               {vistaActual === 'MESAS'           && <Mesas />}
-              {vistaActual === 'MENU'            && <Menu usuario={usuario} />}
-              {vistaActual === 'INVENTARIO'      && <Inventario usuario={usuario} />}
-              {vistaActual === 'USUARIOS'        && <Usuarios usuario={usuario} />}
-              {vistaActual === 'ADMINISTRACION'  && <Administracion usuario={usuario} />}
-              {vistaActual === 'CONFIGURACION'   && <Configuracion usuario={usuario} />}
+              {vistaActual === 'MENU'            && <Menu usuario={usuario} onSessionError={handleSessionError} />}
+              {vistaActual === 'INVENTARIO'      && <Inventario usuario={usuario} onSessionError={handleSessionError} />}
+              {vistaActual === 'USUARIOS'        && <Usuarios usuario={usuario} onSessionError={handleSessionError} />}
+              {vistaActual === 'ADMINISTRACION'  && <Administracion usuario={usuario} onSessionError={handleSessionError} />}
+              {vistaActual === 'CONFIGURACION'   && <Configuracion usuario={usuario} onSessionError={handleSessionError} />}
               {vistaActual === 'PEDIDOS'         && <Pedidos />}
 
               {!['INICIO','LLEVAR','MESAS','MENU','INVENTARIO','USUARIOS','ADMINISTRACION','CONFIGURACION','PEDIDOS'].includes(vistaActual) && (
@@ -394,6 +412,7 @@ function App() {
         </section>
       </main>
     </div>
+    <DialogoUI />
   )
 }
 
