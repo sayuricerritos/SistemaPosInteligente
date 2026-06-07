@@ -58,6 +58,7 @@ export default function Llevar() {
   const [metodoPago, setMetodoPago]                       = useState('Efectivo')
   const [efectivoRecibido, setEfectivoRecibido]           = useState('')
   const [propina, setPropina]                             = useState(0)
+  const [procesandoVenta, setProcesandoVenta]             = useState(false)
   const { notificar, DialogoUI } = useDialogo()
 
   const categorias = ['Bebidas Calientes', 'Bebidas Frias', 'Panaderia', 'Alimentos']
@@ -127,7 +128,9 @@ export default function Llevar() {
   const calcularTotalCarrito = () => carritoLlevar.reduce((acc, i) => acc + calcularPrecioItem(i), 0)
 
   const procesarVentaInmediata = async () => {
+    if (procesandoVenta) return
     const totalFinal = calcularTotalCarrito() + parseFloat(propina || 0)
+    setProcesandoVenta(true)
     try {
       const respuesta = await fetch('http://127.0.0.1:5000/api/pedidos/venta-directa', {
         method: 'POST',
@@ -143,6 +146,8 @@ export default function Llevar() {
     } catch (err) {
       console.error("Error en flujo de caja:", err)
       notificar(`Error al procesar la venta: ${err.message}`, 'error')
+    } finally {
+      setProcesandoVenta(false)
     }
   }
 
@@ -452,11 +457,11 @@ export default function Llevar() {
             <div className="p-4 bg-gray-50 border-t">
               <button
                 onClick={procesarVentaInmediata}
-                disabled={metodoPago === 'Efectivo' && (!efectivoRecibido || parseFloat(efectivoRecibido) < (calcularTotalCarrito() + parseFloat(propina || 0)))}
+                disabled={procesandoVenta || (metodoPago === 'Efectivo' && (!efectivoRecibido || parseFloat(efectivoRecibido) < (calcularTotalCarrito() + parseFloat(propina || 0))))}
                 className="w-full py-3 bg-[#8B5A2B] hover:bg-[#7A4F25] text-white font-black rounded-xl text-xs uppercase disabled:bg-gray-200 disabled:text-gray-400 transition-colors flex items-center justify-center gap-2"
               >
                 <IconoImpresora />
-                Emitir Ticket de Venta Directa
+                {procesandoVenta ? 'Procesando...' : 'Emitir Ticket de Venta Directa'}
               </button>
             </div>
           </div>
