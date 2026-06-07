@@ -15,6 +15,7 @@ from flask import Blueprint, jsonify, request
 from werkzeug.security import generate_password_hash, check_password_hash
 from database import get_db_connection
 from routes.decoradores import requiere_admin
+from database import registrar_auditoria
 
 usuarios_bp = Blueprint('usuarios', __name__)
 
@@ -143,6 +144,18 @@ def guardar_usuario(usuario_sesion):
                      horario, password_hash),
                 )
 
+        registrar_auditoria(
+            usuario_sesion,
+            accion  = 'EDITAR' if id_usuario else 'CREAR',
+            modulo  = 'USUARIOS',
+            detalle = {
+                'id_usuario_afectado': id_usuario,
+                'nombre':              nombre,
+                'nombre_usuario':      nombre_usuario,
+                'puesto':              puesto,
+                'permisos':            permisos,
+            }
+        )
         return jsonify({"mensaje": "Usuario guardado con exito"}), 200
     except Exception as e:
         print(f"[USUARIOS ERROR guardar]: {e}")
@@ -155,11 +168,29 @@ def eliminar_usuario(id_usuario, usuario_sesion):
     try:
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT id FROM usuarios WHERE id = ?;", (id_usuario,))
-            if not cursor.fetchone():
+            cursor.execute(
+                "SELECT id, nombre, nombre_usuario, puesto, permisos "
+                "FROM usuarios WHERE id = ?;",
+                (id_usuario,)
+            )
+            afectado = cursor.fetchone()
+            if not afectado:
                 return jsonify({"error": "Usuario no encontrado"}), 404
+            datos_afectado = dict(afectado)
             conn.execute("DELETE FROM usuarios WHERE id = ?;", (id_usuario,))
         print(f"[USUARIOS] Colaborador ID {id_usuario} eliminado.")
+        registrar_auditoria(
+            usuario_sesion,
+            accion  = 'ELIMINAR',
+            modulo  = 'USUARIOS',
+            detalle = {
+                'id_usuario_afectado': id_usuario,
+                'nombre':              datos_afectado.get('nombre'),
+                'nombre_usuario':      datos_afectado.get('nombre_usuario'),
+                'puesto':              datos_afectado.get('puesto'),
+                'permisos':            datos_afectado.get('permisos'),
+            }
+        )
         return jsonify({"mensaje": "Colaborador eliminado con exito"}), 200
     except Exception as e:
         print(f"[USUARIOS ERROR eliminar]: {e}")
