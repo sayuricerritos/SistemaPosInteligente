@@ -12,7 +12,7 @@ CORRECCIONES:
 """
 
 from flask import Blueprint, jsonify, request
-from database import get_db_connection
+from database import get_db_connection, registrar_auditoria
 from routes.decoradores import requiere_admin
 
 inventario_bp = Blueprint('inventario', __name__)
@@ -70,6 +70,17 @@ def crear_insumo(usuario_sesion):
                 (nombre, float(cantidad), unidad, minimo),
             )
         print(f"[INVENTARIO] Insumo creado: {nombre} ({unidad})")
+        registrar_auditoria(
+            usuario_sesion,
+            accion  = 'CREAR',
+            modulo  = 'INVENTARIO',
+            detalle = {
+                'nombre':           nombre,
+                'unidad':           unidad,
+                'cantidad_inicial': float(cantidad),
+                'stock_minimo':     minimo,
+            }
+        )
         return jsonify({"mensaje": f"Insumo '{nombre}' creado con exito"}), 200
     except Exception as e:
         print(f"[INVENTARIO ERROR nuevo]: {e}")
@@ -105,7 +116,8 @@ def ajustar_inventario(usuario_sesion):
             if not fila:
                 return jsonify({"error": "Insumo no encontrado"}), 404
 
-            stock_actual = float(fila['cantidad_actual'])
+            nombre_insumo = fila['nombre_insumo']
+            stock_actual  = float(fila['cantidad_actual'])
 
             if tipo == 'MERMA':
                 if cantidad > stock_actual:
@@ -120,12 +132,27 @@ def ajustar_inventario(usuario_sesion):
                     "UPDATE insumos SET cantidad_actual = cantidad_actual - ? WHERE id = ?;",
                     (cantidad, id_insumo),
                 )
+                cantidad_nueva = round(stock_actual - cantidad, 3)
             else:
                 cursor.execute(
                     "UPDATE insumos SET cantidad_actual = cantidad_actual + ? WHERE id = ?;",
                     (cantidad, id_insumo),
                 )
+                cantidad_nueva = round(stock_actual + cantidad, 3)
 
+        registrar_auditoria(
+            usuario_sesion,
+            accion  = 'AJUSTAR',
+            modulo  = 'INVENTARIO',
+            detalle = {
+                'id_insumo':        id_insumo,
+                'nombre':           nombre_insumo,
+                'tipo':             tipo,
+                'cantidad_ajuste':  cantidad,
+                'cantidad_anterior': stock_actual,
+                'cantidad_nueva':   cantidad_nueva,
+            }
+        )
         return jsonify({"mensaje": "Ajuste aplicado con exito"}), 200
     except Exception as e:
         print(f"[INVENTARIO ERROR ajustar]: {e}")
