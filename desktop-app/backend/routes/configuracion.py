@@ -4,16 +4,23 @@ routes/configuracion.py -- Configuracion General del Sistema
 
 from flask import Blueprint, jsonify, request
 from state import configuracion_sistema
+from routes.decoradores import requiere_admin
 
 configuracion_bp = Blueprint('configuracion', __name__)
 
 
-@configuracion_bp.route('/api/configuracion', methods=['GET', 'POST'])
-def gestionar_configuracion():
-    if request.method == 'POST':
-        data = request.json or {}
-        configuracion_sistema["empresa"]      = data.get("empresa",      configuracion_sistema["empresa"])
-        configuracion_sistema["direccion"]    = data.get("direccion",    configuracion_sistema["direccion"])
-        configuracion_sistema["limite_mesas"] = int(data.get("limite_mesas", configuracion_sistema["limite_mesas"]))
-        return jsonify({"mensaje": "Configuracion actualizada"}), 200
+@configuracion_bp.route('/api/configuracion', methods=['GET'])
+def obtener_configuracion():
+    """GET: obtener configuración actual (público)."""
     return jsonify(configuracion_sistema), 200
+
+
+@configuracion_bp.route('/api/configuracion', methods=['POST'])
+@requiere_admin
+def actualizar_configuracion(usuario_sesion):
+    """POST: actualizar configuración (solo admin)."""
+    data = request.json or {}
+    configuracion_sistema["empresa"]      = data.get("empresa",      configuracion_sistema["empresa"])
+    configuracion_sistema["direccion"]    = data.get("direccion",    configuracion_sistema["direccion"])
+    configuracion_sistema["limite_mesas"] = int(data.get("limite_mesas", configuracion_sistema["limite_mesas"]))
+    return jsonify({"mensaje": "Configuracion actualizada"}), 200
