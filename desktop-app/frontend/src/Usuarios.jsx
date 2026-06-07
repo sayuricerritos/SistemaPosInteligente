@@ -46,7 +46,7 @@ const FORM_INICIAL = {
   contrasena: '',
 }
 
-export default function Usuarios() {
+export default function Usuarios({ usuario }) {
   const [usuarios, setUsuarios]         = useState([])
   const [mostrarModal, setMostrarModal] = useState(false)
   const [loading, setLoading]           = useState(true)

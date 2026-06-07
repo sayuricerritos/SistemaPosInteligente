@@ -378,8 +378,8 @@ function App() {
               {vistaActual === 'MESAS'           && <Mesas />}
               {vistaActual === 'MENU'            && <Menu />}
               {vistaActual === 'INVENTARIO'      && <Inventario />}
-              {vistaActual === 'USUARIOS'        && <Usuarios />}
-              {vistaActual === 'ADMINISTRACION'  && <Administracion />}
+              {vistaActual === 'USUARIOS'        && <Usuarios usuario={usuario} />}
+              {vistaActual === 'ADMINISTRACION'  && <Administracion usuario={usuario} />}
               {vistaActual === 'CONFIGURACION'   && <Configuracion />}
               {vistaActual === 'PEDIDOS'         && <Pedidos />}
 

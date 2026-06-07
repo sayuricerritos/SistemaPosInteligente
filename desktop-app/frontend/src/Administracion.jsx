@@ -32,7 +32,7 @@ const IconoTicket = () => (
   </svg>
 )
 
-export default function Administracion() {
+export default function Administracion({ usuario }) {
   // Estado base con ceros explicitos garantiza que .toFixed(2) nunca
   // actue sobre undefined durante el primer ciclo de renderizado.
   const CORTE_VACIO = {
