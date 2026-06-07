@@ -79,21 +79,50 @@ def ajustar_inventario():
     """
     Ajuste manual de stock. Acepta fracciones (ENTRADA o MERMA).
     El campo id_insumo del body corresponde al alias; WHERE usa 'id = ?'.
+    Para MERMA: rechaza si la cantidad solicitada supera el stock actual.
     """
     data      = request.json or {}
     id_insumo = data.get('id_insumo')
     cantidad  = float(data.get('cantidad', 0))
-    operador  = 1 if data.get('tipo') == 'ENTRADA' else -1
+    tipo      = data.get('tipo', 'ENTRADA')
 
     if not id_insumo or cantidad <= 0:
         return jsonify({"error": "Datos invalidos"}), 400
 
     try:
         with get_db_connection() as conn:
-            conn.execute(
-                "UPDATE insumos SET cantidad_actual = cantidad_actual + ? WHERE id = ?;",
-                (cantidad * operador, id_insumo),
+            cursor = conn.cursor()
+
+            cursor.execute(
+                "SELECT nombre_insumo, cantidad_actual FROM insumos WHERE id = ?;",
+                (id_insumo,),
             )
+            fila = cursor.fetchone()
+
+            if not fila:
+                return jsonify({"error": "Insumo no encontrado"}), 404
+
+            stock_actual = float(fila['cantidad_actual'])
+
+            if tipo == 'MERMA':
+                if cantidad > stock_actual:
+                    return jsonify({
+                        "error": (
+                            f"Stock insuficiente. "
+                            f"Disponible: {stock_actual} — "
+                            f"Solicitado: {cantidad}"
+                        )
+                    }), 400
+                cursor.execute(
+                    "UPDATE insumos SET cantidad_actual = cantidad_actual - ? WHERE id = ?;",
+                    (cantidad, id_insumo),
+                )
+            else:
+                cursor.execute(
+                    "UPDATE insumos SET cantidad_actual = cantidad_actual + ? WHERE id = ?;",
+                    (cantidad, id_insumo),
+                )
+
         return jsonify({"mensaje": "Ajuste aplicado con exito"}), 200
     except Exception as e:
         print(f"[INVENTARIO ERROR ajustar]: {e}")
