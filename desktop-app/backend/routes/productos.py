@@ -11,7 +11,7 @@ CORRECCIONES:
 import ast
 import json
 from flask import Blueprint, jsonify, request
-from database import get_db_connection
+from database import get_db_connection, registrar_auditoria
 from routes.decoradores import requiere_admin
 
 productos_bp = Blueprint('productos', __name__)
@@ -70,6 +70,16 @@ def crear_producto(usuario_sesion):
                 (data['nombre_producto'], float(data['precio_venta']),
                  data.get('categoria', '')),
             )
+        registrar_auditoria(
+            usuario_sesion,
+            accion  = 'CREAR',
+            modulo  = 'PRODUCTOS',
+            detalle = {
+                'nombre_producto': data.get('nombre_producto'),
+                'categoria':       data.get('categoria', ''),
+                'precio_venta':    float(data.get('precio_venta', 0)),
+            }
+        )
         return jsonify({"mensaje": "Producto guardado"}), 200
     except Exception as e:
         print(f"[PRODUCTOS ERROR POST]: {e}")
@@ -93,6 +103,17 @@ def actualizar_producto(id_producto, usuario_sesion):
                 "WHERE id=?;",
                 (nombre, float(precio), categoria, id_producto),
             )
+        registrar_auditoria(
+            usuario_sesion,
+            accion  = 'EDITAR',
+            modulo  = 'PRODUCTOS',
+            detalle = {
+                'id_producto':     id_producto,
+                'nombre_producto': nombre,
+                'categoria':       categoria,
+                'precio_venta':    float(precio),
+            }
+        )
         return jsonify({"mensaje": "Producto actualizado"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -105,11 +126,28 @@ def eliminar_producto(id_producto, usuario_sesion):
     try:
         with get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT id FROM productos WHERE id = ?;", (id_producto,))
-            if not cursor.fetchone():
+            cursor.execute(
+                "SELECT id AS id_producto, nombre_producto, categoria, precio_venta "
+                "FROM productos WHERE id = ?;",
+                (id_producto,)
+            )
+            afectado = cursor.fetchone()
+            if not afectado:
                 return jsonify({"error": "Producto no encontrado"}), 404
+            datos_afectado = dict(afectado)
             conn.execute("DELETE FROM productos WHERE id = ?;", (id_producto,))
         print(f"[PRODUCTOS] ID {id_producto} eliminado del catalogo.")
+        registrar_auditoria(
+            usuario_sesion,
+            accion  = 'ELIMINAR',
+            modulo  = 'PRODUCTOS',
+            detalle = {
+                'id_producto':     datos_afectado.get('id_producto'),
+                'nombre_producto': datos_afectado.get('nombre_producto'),
+                'categoria':       datos_afectado.get('categoria'),
+                'precio_venta':    datos_afectado.get('precio_venta'),
+            }
+        )
         return jsonify({"mensaje": "Producto eliminado del catalogo"}), 200
     except Exception as e:
         print(f"[PRODUCTOS ERROR DELETE]: {e}")
@@ -129,6 +167,16 @@ def guardar_receta_producto(usuario_sesion):
                 "UPDATE productos SET insumos_receta=? WHERE id=?;",
                 (json.dumps(insumos), id_producto),
             )
+        registrar_auditoria(
+            usuario_sesion,
+            accion  = 'MODIFICAR_RECETA',
+            modulo  = 'PRODUCTOS',
+            detalle = {
+                'id_producto':       id_producto,
+                'total_insumos':     len(insumos),
+                'ids_insumos':       [i.get('id_insumo') for i in insumos if isinstance(i, dict)],
+            }
+        )
         return jsonify({"mensaje": "Receta guardada"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -151,6 +199,16 @@ def guardar_extras_producto(usuario_sesion):
                 "UPDATE productos SET extras_disponibles=? WHERE id=?;",
                 (json.dumps(extras), id_producto),
             )
+        registrar_auditoria(
+            usuario_sesion,
+            accion  = 'MODIFICAR_EXTRAS',
+            modulo  = 'PRODUCTOS',
+            detalle = {
+                'id_producto':  id_producto,
+                'total_extras': len(extras),
+                'nombres':      [e.get('nombre') for e in extras if isinstance(e, dict)],
+            }
+        )
         return jsonify({"mensaje": "Extras asignados"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
