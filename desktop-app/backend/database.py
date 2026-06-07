@@ -176,6 +176,7 @@ def init_database():
 
         # ---- Migrations defensivas ---------------------------------
         _migration_add_column(cursor, 'pedidos',  'metodo_pago TEXT DEFAULT "Efectivo"')
+        _migration_add_column(cursor, 'pedidos',  'tipo TEXT DEFAULT "comanda"')
         _migration_add_column(cursor, 'usuarios', 'password_hash TEXT DEFAULT NULL')
         _migration_add_column(cursor, 'usuarios', 'nombre_usuario TEXT')
 
