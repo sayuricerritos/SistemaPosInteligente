@@ -27,6 +27,80 @@ def _precio_item(item):
     return float(item.get('precio_venta', 0) or 0) + costo_extras
 
 
+# ============================================================
+# HELPERS: persistencia de snapshots
+# ============================================================
+
+def _guardar_snapshot_mesa(numero_mesa):
+    """
+    Persiste el estado actual de mesas_activas[numero_mesa] en
+    snapshots_mesa como JSON. Si la mesa no está en memoria, no hace nada.
+    No modifica mesas_activas, tickets ni inventario.
+    """
+    if numero_mesa not in mesas_activas:
+        return
+    snapshot_json = json.dumps(mesas_activas[numero_mesa], ensure_ascii=False)
+    try:
+        with get_db_connection() as conn:
+            conn.execute(
+                """
+                INSERT INTO snapshots_mesa (numero_mesa, snapshot_json, updated_at)
+                VALUES (?, ?, datetime('now'))
+                ON CONFLICT(numero_mesa) DO UPDATE SET
+                    snapshot_json = excluded.snapshot_json,
+                    updated_at    = excluded.updated_at;
+                """,
+                (numero_mesa, snapshot_json),
+            )
+    except Exception as e:
+        print(f"[MESAS SNAPSHOT] Error al guardar snapshot mesa {numero_mesa}: {e}")
+
+
+def _borrar_snapshot_mesa(numero_mesa):
+    """
+    Elimina el snapshot de la mesa indicada de snapshots_mesa.
+    No modifica tickets ni inventario.
+    """
+    try:
+        with get_db_connection() as conn:
+            conn.execute(
+                "DELETE FROM snapshots_mesa WHERE numero_mesa = ?;",
+                (numero_mesa,),
+            )
+    except Exception as e:
+        print(f"[MESAS SNAPSHOT] Error al borrar snapshot mesa {numero_mesa}: {e}")
+
+
+def restaurar_mesas_desde_snapshots():
+    """
+    Lee todos los registros de snapshots_mesa y repuebla mesas_activas.
+    Si algún JSON está corrupto, lo omite con advertencia.
+    No crea tickets, no toca inventario, no cambia estado en tabla mesas.
+    Debe llamarse al iniciar Flask (pendiente: Commit 3).
+    """
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT numero_mesa, snapshot_json FROM snapshots_mesa;")
+            filas = cursor.fetchall()
+
+        restauradas = 0
+        for fila in filas:
+            num  = fila['numero_mesa']
+            raw  = fila['snapshot_json']
+            try:
+                datos = json.loads(raw)
+                mesas_activas[num] = datos
+                restauradas += 1
+            except Exception:
+                print(f"[MESAS SNAPSHOT] JSON corrupto para mesa {num}, ignorando.")
+
+        if restauradas:
+            print(f"[MESAS SNAPSHOT] {restauradas} mesa(s) restauradas desde snapshots.")
+    except Exception as e:
+        print(f"[MESAS SNAPSHOT] Error al restaurar snapshots: {e}")
+
+
 @mesas_bp.route('/api/mesas', methods=['GET'])
 def obtener_mesas():
     """
