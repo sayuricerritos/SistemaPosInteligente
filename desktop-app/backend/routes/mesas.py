@@ -187,6 +187,7 @@ def abrir_mesa():
             "productos":  [],
             "subtotal":   0.0,
         }
+        _guardar_snapshot_mesa(numero_mesa)
         return jsonify({"mensaje": f"Mesa {numero_mesa} abierta", "numero_mesa": numero_mesa}), 200
     except Exception as e:
         print(f"[MESAS ERROR abrir]: {e}")
@@ -211,6 +212,7 @@ def comandar_mesa():
     sesion = mesas_activas[numero_mesa]
     sesion['productos'].extend(productos_nuevos)
     sesion['subtotal'] = sum(_precio_item(p) for p in sesion['productos'])
+    _guardar_snapshot_mesa(numero_mesa)
 
     fecha           = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     subtotal_nuevos = sum(_precio_item(p) for p in productos_nuevos)
