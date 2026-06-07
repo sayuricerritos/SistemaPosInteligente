@@ -124,18 +124,18 @@ export default function App() {
       </header>
 
       {/* CONTENIDO PRINCIPAL */}
-      <main className="max-w-5xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
 
         {/* COLUMNA IZQUIERDA: CATEGORIAS Y PRODUCTOS */}
         <div className="lg:col-span-2 space-y-4">
 
-          {/* Tabs de categorias */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {/* Tabs de categorias — scroll horizontal en movil */}
+          <div className="flex gap-2 overflow-x-auto pb-1 sm:grid sm:grid-cols-4 sm:overflow-visible">
             {categories.map(cat => (
               <button
                 key={cat}
                 onClick={() => setCategoriaActiva(cat)}
-                className={`py-2 rounded-xl text-xs font-black uppercase tracking-wide transition-all border ${
+                className={`flex-shrink-0 sm:flex-shrink py-2 px-3 sm:px-2 rounded-xl text-xs font-black uppercase tracking-wide transition-all border whitespace-nowrap ${
                   categoriaActiva === cat
                     ? 'bg-[#8B5A2B] text-white border-[#8B5A2B] shadow-sm'
                     : 'bg-white text-gray-500 border-gray-200 hover:border-[#8B5A2B] hover:text-[#8B5A2B]'
@@ -176,8 +176,8 @@ export default function App() {
           </div>
         </div>
 
-        {/* COLUMNA DERECHA: CARRITO */}
-        <div className="w-full">
+        {/* COLUMNA DERECHA: CARRITO — sticky en escritorio */}
+        <div className="w-full lg:sticky lg:top-6">
           <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
 
             {/* Titulo carrito */}
