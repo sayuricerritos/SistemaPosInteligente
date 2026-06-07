@@ -84,6 +84,24 @@ def _migration_add_column(cursor, table, column_def):
         print(f"[DB] Migration: {table}.{col_name} agregada.")
 
 
+def limpiar_sesiones_expiradas():
+    """
+    Elimina sesiones expiradas de la tabla sesiones.
+    No se llama automáticamente; debe ser llamada explícitamente.
+    """
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "DELETE FROM sesiones WHERE expires_at < datetime('now');"
+            )
+            filas_eliminadas = cursor.rowcount
+            if filas_eliminadas > 0:
+                print(f"[DB] Limpieza: {filas_eliminadas} sesiones expiradas eliminadas.")
+    except Exception as e:
+        print(f"[DB] Error limpiando sesiones: {e}")
+
+
 def init_database():
     from werkzeug.security import generate_password_hash
 
@@ -173,6 +191,37 @@ def init_database():
                 ejecutado_at  TEXT    NOT NULL
             );
         """)
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS sesiones (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                token           TEXT UNIQUE NOT NULL,
+                id_usuario      INTEGER NOT NULL,
+                permisos        TEXT NOT NULL,
+                puesto          TEXT NOT NULL,
+                nombre_usuario  TEXT NOT NULL,
+                created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at      TIMESTAMP NOT NULL,
+                last_activity   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                ip_address      TEXT,
+                user_agent      TEXT,
+                FOREIGN KEY (id_usuario) REFERENCES usuarios(id) ON DELETE CASCADE
+            );
+        """)
+
+        # ---- Indices para optimización ----------------------------
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_sesiones_token "
+            "ON sesiones(token);"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_sesiones_id_usuario "
+            "ON sesiones(id_usuario);"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_sesiones_expires_at "
+            "ON sesiones(expires_at);"
+        )
 
         # ---- Migrations defensivas ---------------------------------
         _migration_add_column(cursor, 'pedidos',  'metodo_pago TEXT DEFAULT "Efectivo"')
