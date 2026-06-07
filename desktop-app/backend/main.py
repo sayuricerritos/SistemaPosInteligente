@@ -28,7 +28,7 @@ CORS(app)
 from routes.productos import productos_bp
 from routes.inventario import inventario_bp
 from routes.pedidos import pedidos_bp
-from routes.mesas import mesas_bp
+from routes.mesas import mesas_bp, restaurar_mesas_desde_snapshots
 from routes.usuarios import usuarios_bp
 from routes.administracion import administracion_bp
 
@@ -81,6 +81,9 @@ def start_flask():
 if __name__ == '__main__':
     # Inicializar base de datos (crea tablas, seeds, migrations)
     init_database()
+
+    # Restaurar mesas activas desde snapshots persistidos
+    restaurar_mesas_desde_snapshots()
 
     # Intentar abrir ventana nativa con pywebview
     try:
