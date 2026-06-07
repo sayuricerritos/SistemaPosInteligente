@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useDialogo } from './components/Dialogo'
 import { noNeg } from './helpers/validacion'
 
 const IconoCandado = ({ className = 'w-3.5 h-3.5' }) => (
@@ -52,6 +53,8 @@ export default function Usuarios() {
   const [rolUsuarioLogueado, setRolUsuarioLogueado] = useState('Admin')
   const [formStaff, setFormStaff]       = useState(FORM_INICIAL)
   const [errorForm, setErrorForm]       = useState('')
+  const [guardandoUsuario, setGuardandoUsuario] = useState(false)
+  const { notificar, confirmar, DialogoUI } = useDialogo()
 
   const cargarPersonal = () => {
     setLoading(true)
@@ -101,17 +104,19 @@ export default function Usuarios() {
       .catch(err => alert(`No se pudo eliminar: ${err.message}`))
   }
 
-  const handleGuardarStaff = (e) => {
+  const handleGuardarStaff = async (e) => {
     e.preventDefault()
+    if (guardandoUsuario) return
     setErrorForm('')
 
     if (!formStaff.nombre.trim()) { setErrorForm('El nombre del trabajador es obligatorio.'); return }
     if (!formStaff.nombre_usuario.trim()) { setErrorForm('El nombre de usuario es obligatorio.'); return }
 
     if (!formStaff.id_usuario && !formStaff.contrasena.trim()) {
-      if (!window.confirm('Sin contrasena, este usuario no podra iniciar sesion. Continuar?')) return
+      if (!await confirmar('Sin contrasena, este usuario no podra iniciar sesion. Continuar?')) return
     }
 
+    setGuardandoUsuario(true)
     fetch('http://127.0.0.1:5000/api/usuarios/guardar', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -127,6 +132,7 @@ export default function Usuarios() {
       setMostrarModal(false)
     })
     .catch(err => setErrorForm(err.message))
+    .finally(() => setGuardandoUsuario(false))
   }
 
   const esAdmin = rolUsuarioLogueado === 'Admin'
@@ -339,14 +345,15 @@ export default function Usuarios() {
                 className="w-1/3 py-2.5 border rounded-xl text-gray-400 normal-case font-bold">
                 Cancelar
               </button>
-              <button type="submit"
-                className="flex-1 py-2.5 bg-[#8B5A2B] hover:bg-[#7A4F25] text-white rounded-xl shadow-sm tracking-wide">
-                Guardar Registro
+              <button type="submit" disabled={guardandoUsuario}
+                className={`flex-1 py-2.5 rounded-xl shadow-sm tracking-wide text-white ${guardandoUsuario ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#8B5A2B] hover:bg-[#7A4F25]'}`}>
+                {guardandoUsuario ? 'Guardando...' : 'Guardar Registro'}
               </button>
             </div>
           </form>
         </div>
       )}
+      <DialogoUI />
     </div>
   )
 }
