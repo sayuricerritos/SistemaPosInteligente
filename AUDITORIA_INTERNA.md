@@ -283,6 +283,30 @@ No se implementó sincronización automática porque:
 
 ---
 
+## ✅ COMPLETADO: Corrección Visual de Grillas de Productos
+
+### Problema:
+Las tarjetas de productos en **Llevar** y en **Mesas → vista de comanda** mostraban huecos verticales grandes entre filas. El catálogo se veía desordenado con pocos productos en pantalla.
+
+### Causa:
+Los contenedores `grid` estaban dentro de un flex con `flex-1`, lo que les hacía ocupar toda la altura disponible del contenedor padre. CSS Grid usa `align-content: stretch` por defecto, distribuyendo las filas para llenar esa altura — produciendo tarjetas o espacios estirados visualmente.
+
+### Solución:
+Agregar `content-start` (`align-content: start`) al contenedor de la grilla en los dos archivos afectados:
+
+- ✅ `Llevar.jsx` línea 196: `grid grid-cols-2 sm:grid-cols-3 gap-3 pr-1 content-start`
+- ✅ `Mesas.jsx` línea 347: `grid grid-cols-2 sm:grid-cols-3 gap-3 pr-1 content-start`
+- ✅ Commit: `frontend: compactar grillas de productos` (3b38b6d)
+
+### Resultado:
+- ✅ Productos alineados desde la parte superior, con `gap-3` uniforme
+- ✅ Sin huecos ni filas estiradas
+- ✅ Responsive (`grid-cols-2 sm:grid-cols-3`) intacto
+- ✅ Tabs de categorías, panel lateral de Llevar y panel de comanda de Mesas: sin cambios
+- ✅ Lógica funcional, backend, tickets, inventario, snapshots, auditoría y seguridad: sin cambios
+
+---
+
 ## 📊 Resumen Estado General
 
 | Aspecto | Estado | Prioridad |
@@ -301,6 +325,7 @@ No se implementó sincronización automática porque:
 | Configuración de número de mesas | ✅ Completado | - |
 | Manejo global 401/403 - Implementado | ⚠️ Pendiente validación visual | 🟡 Media |
 | Auditoría de operaciones | ⚠️ Implementado, validación parcial | 🟡 Media |
+| Corrección visual grillas de productos | ✅ Completado | - |
 | Persistencia de sesión (localStorage) | ❌ Futuro | 🟡 Media |
 
 ---
