@@ -89,19 +89,19 @@ export default function Usuarios() {
     setMostrarModal(true)
   }
 
-  const handleEliminar = (id) => {
+  const handleEliminar = async (id) => {
     if (rolUsuarioLogueado !== 'Admin') {
-      alert('Acceso denegado: se requiere rol Administrador.')
+      notificar('Acceso denegado: se requiere rol Administrador.')
       return
     }
-    if (!window.confirm('Confirmar la baja definitiva de este colaborador?')) return
+    if (!await confirmar('Confirmar la baja definitiva de este colaborador?')) return
     fetch(`http://127.0.0.1:5000/api/usuarios/${id}`, { method: 'DELETE' })
       .then(res => {
         if (!res.ok) return res.json().then(d => { throw new Error(d.error || `Error ${res.status}`) })
         return res.json()
       })
       .then(() => cargarPersonal())
-      .catch(err => alert(`No se pudo eliminar: ${err.message}`))
+      .catch(err => notificar(`No se pudo eliminar: ${err.message}`))
   }
 
   const handleGuardarStaff = async (e) => {
