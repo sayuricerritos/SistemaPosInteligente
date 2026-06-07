@@ -221,12 +221,19 @@ export default function Llevar() {
               carritoLlevar.map((item, index) => (
                 <div
                   key={item.uniqueId}
-                  onClick={() => abrirPersonalizacion(item, index)}
-                  className="bg-gray-50 p-2.5 rounded-xl border border-dashed border-gray-300 cursor-pointer hover:border-[#8B5A2B] transition-colors"
+                  className="bg-gray-50 p-2.5 rounded-xl border border-dashed border-gray-300 transition-colors"
                 >
-                  <div className="flex justify-between font-black text-gray-800 text-xs">
-                    <span>{item.nombre_producto}</span>
-                    <span>${calcularPrecioItem(item).toFixed(2)}</span>
+                  <div className="flex justify-between font-black text-gray-800 text-xs items-start">
+                    <span onClick={() => abrirPersonalizacion(item, index)} className="flex-1 cursor-pointer hover:text-[#8B5A2B] transition-colors">{item.nombre_producto}</span>
+                    <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                      <span>${calcularPrecioItem(item).toFixed(2)}</span>
+                      <button
+                        type="button"
+                        onClick={e => { e.stopPropagation(); setCarritoLlevar(prev => prev.filter((_, i) => i !== index)) }}
+                        className="text-red-400 hover:text-red-600 hover:bg-red-50 rounded px-1 transition-colors leading-none font-black text-sm"
+                        title="Quitar del carrito"
+                      >×</button>
+                    </div>
                   </div>
                   {item.modificadores?.base && (
                     <span className="text-3xs text-gray-400 block">* {item.modificadores.base}</span>
