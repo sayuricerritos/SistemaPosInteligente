@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useDialogo } from './components/Dialogo'
 import { noNeg } from './helpers/validacion'
+import { apiFetch } from './helpers/apiFetch'
 
 const IconoCandado = ({ className = 'w-3.5 h-3.5' }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -58,7 +59,7 @@ export default function Usuarios({ usuario }) {
 
   const cargarPersonal = () => {
     setLoading(true)
-    fetch('http://127.0.0.1:5000/api/usuarios')
+    apiFetch('http://127.0.0.1:5000/api/usuarios', {}, usuario)
       .then(res => {
         if (!res.ok) throw new Error(`Error ${res.status}`)
         return res.json()
@@ -95,7 +96,7 @@ export default function Usuarios({ usuario }) {
       return
     }
     if (!await confirmar('Confirmar la baja definitiva de este colaborador?')) return
-    fetch(`http://127.0.0.1:5000/api/usuarios/${id}`, { method: 'DELETE' })
+    apiFetch(`http://127.0.0.1:5000/api/usuarios/${id}`, { method: 'DELETE' }, usuario)
       .then(res => {
         if (!res.ok) return res.json().then(d => { throw new Error(d.error || `Error ${res.status}`) })
         return res.json()
@@ -117,11 +118,10 @@ export default function Usuarios({ usuario }) {
     }
 
     setGuardandoUsuario(true)
-    fetch('http://127.0.0.1:5000/api/usuarios/guardar', {
+    apiFetch('http://127.0.0.1:5000/api/usuarios/guardar', {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify(formStaff),
-    })
+    }, usuario)
     .then(res => {
       if (!res.ok) return res.json().then(d => { throw new Error(d.error || `Error ${res.status}`) })
       return res.json()
