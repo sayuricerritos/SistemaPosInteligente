@@ -299,9 +299,9 @@ No se implementó sincronización automática porque:
 | Inconsistencia comensales (4 vs 5) | ✅ Completado | - |
 | Botón Atrás en vista de comanda | ✅ Completado | - |
 | Configuración de número de mesas | ✅ Completado | - |
+| Manejo global 401/403 - Implementado | ⚠️ Pendiente validación visual | 🟡 Media |
 | Auditoría de operaciones | ❌ Futuro | 🟡 Media |
 | Persistencia de sesión (localStorage) | ❌ Futuro | 🟡 Media |
-| Manejo global 401/403 | ❌ Futuro | 🟡 Media |
 
 ---
 
@@ -325,11 +325,55 @@ No se implementó sincronización automática porque:
 
 ---
 
+## ⚠️ IMPLEMENTADO, PENDIENTE VALIDACIÓN VISUAL: Manejo Global 401/403
+
+### Estado de implementación:
+
+**Backend (ya existente desde sesión simple):**
+- ✅ `@validar_sesion` devuelve 401 con `code: MISSING_TOKEN / INVALID_TOKEN / EXPIRED_SESSION`
+- ✅ `@requiere_admin` devuelve 403 con `code: FORBIDDEN` cuando token es válido pero sin permisos
+
+**Frontend — Capa de intercepción (`apiFetch.js`):**
+- ✅ Cuarto argumento: `onSessionError = null`
+- ✅ `res.status === 401` → llama `onSessionError('unauthorized', res)`
+- ✅ `res.status === 403` → llama `onSessionError('forbidden', res)`
+- ✅ La `Response` original siempre se propaga al `.then()` del componente — sin breaking change
+- ✅ Commit: `frontend: agregar callback de sesion a apiFetch` (01afdab)
+
+**Frontend — Manejador global (`App.jsx`):**
+- ✅ `useDialogo()` instanciado: `notificar`, `DialogoUI`
+- ✅ `sessionErrorDispatched = useRef(false)` — flag para evitar múltiples toasts/logout
+- ✅ `handleSessionError('unauthorized')`: toast "Tu sesión ha expirado..." + logout a 1500ms
+- ✅ `handleSessionError('forbidden')`: toast "No tienes permisos..." sin logout
+- ✅ `<DialogoUI />` dentro de fragment en el return
+- ✅ `onSessionError={handleSessionError}` pasado como prop a los 5 módulos protegidos
+- ✅ Commit: `frontend: manejar errores de sesion en app` (a9a2044)
+- ✅ Commit: `fix: corregir render de DialogoUI en App` (4b0fad7)
+
+**Frontend — Integración en módulos (`Usuarios, Administracion, Menu, Inventario, Configuracion`):**
+- ✅ Los 5 componentes reciben `onSessionError` como prop en su firma
+- ✅ 21 llamadas `apiFetch` pasan `onSessionError` como cuarto argumento
+- ✅ Commit: `frontend: conectar errores de sesion en modulos protegidos` (842e753)
+
+### Pruebas realizadas:
+- ✅ Flujo normal Admin: todos los módulos cargan sin toasts falsos de sesión
+- ✅ Cajero no ve módulos administrativos en UI
+- ✅ Backend devuelve 401/403 correctamente según decoradores (validado en sesión simple)
+
+### Pendiente validación visual:
+- ⏳ Toast "Tu sesión ha expirada..." visible en pantalla al expirar token (401)
+- ⏳ Logout automático después de 1.5 segundos post-401
+- ⏳ Toast "No tienes permisos..." visible al recibir 403 desde componente real
+- ⏳ Validar que múltiples requests fallando a la vez producen un solo toast (flag `sessionErrorDispatched`)
+
+**Nota:** La validación manual requiere forzar un 401 (token inválido) o un 403 (Cajero en módulo admin). El método más seguro sin tocar SQLite directamente es usar React DevTools para cambiar `vistaActual` mientras se tiene una sesión de Cajero activa.
+
+---
+
 ## 📋 Siguiente Bloque Recomendado
 
 ### Opción A — Mejoras de Sesión (Prioridad Baja)
 - localStorage para persistir sesión entre recargas del frontend
-- Manejo global 401/403 (interceptor centralizado)
 - Renovación de token por actividad
 
 ### Opción B — Auditoría de Operaciones (Prioridad Baja)
