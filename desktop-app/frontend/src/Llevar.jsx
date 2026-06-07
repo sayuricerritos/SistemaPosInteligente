@@ -193,7 +193,7 @@ export default function Llevar() {
             ))}
           </div>
 
-          <div className="flex-1 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 gap-3 pr-1">
+          <div className="flex-1 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 gap-3 pr-1 content-start">
             {productos.filter(p => p.categoria === categoriaActiva).map(prod => (
               <button
                 key={prod.id_producto}

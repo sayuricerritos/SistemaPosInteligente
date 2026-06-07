@@ -344,7 +344,7 @@ export default function Mesas() {
                 <button key={cat} onClick={() => setCategoriaActiva(cat)} className={`py-2.5 rounded-lg text-2xs font-black transition-all ${categoriaActiva === cat ? 'bg-[#8B5A2B] text-white shadow-sm' : 'bg-white text-gray-500'}`}>{cat}</button>
               ))}
             </div>
-            <div className="flex-1 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 gap-3 pr-1">
+            <div className="flex-1 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 gap-3 pr-1 content-start">
               {productos.filter(p => p.categoria === categoriaActiva).map(prod => (
                 <button key={prod.id_producto} onClick={() => agregarAComandaSesion(prod)} className="bg-white border p-4 rounded-xl flex flex-col justify-between items-center text-center h-24 hover:border-[#8B5A2B] transition-all active:scale-95">
                   <span className="font-bold text-gray-700 text-xs line-clamp-2">{prod.nombre_producto}</span>
