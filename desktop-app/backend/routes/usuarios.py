@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 from flask import Blueprint, jsonify, request
 from werkzeug.security import generate_password_hash, check_password_hash
 from database import get_db_connection
+from routes.decoradores import requiere_admin
 
 usuarios_bp = Blueprint('usuarios', __name__)
 
@@ -43,7 +44,8 @@ def crear_sesion(id_usuario, permisos, puesto, nombre_usuario):
 
 
 @usuarios_bp.route('/api/usuarios', methods=['GET'])
-def obtener_usuarios():
+@requiere_admin
+def obtener_usuarios(usuario_sesion):
     try:
         with get_db_connection() as conn:
             cursor = conn.cursor()
@@ -70,7 +72,8 @@ def obtener_usuarios():
 
 
 @usuarios_bp.route('/api/usuarios/guardar', methods=['POST'])
-def guardar_usuario():
+@requiere_admin
+def guardar_usuario(usuario_sesion):
     """
     Alta o edicion de colaborador.
     Valida que nombre_usuario sea unico antes de guardar.
@@ -147,7 +150,8 @@ def guardar_usuario():
 
 
 @usuarios_bp.route('/api/usuarios/<int:id_usuario>', methods=['DELETE'])
-def eliminar_usuario(id_usuario):
+@requiere_admin
+def eliminar_usuario(id_usuario, usuario_sesion):
     try:
         with get_db_connection() as conn:
             cursor = conn.cursor()

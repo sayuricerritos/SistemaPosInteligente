@@ -18,6 +18,7 @@ from sklearn.linear_model import LinearRegression
 from datetime import datetime
 from flask import Blueprint, jsonify, request
 from database import get_db_connection
+from routes.decoradores import requiere_admin
 
 administracion_bp = Blueprint('administracion', __name__)
 
@@ -172,7 +173,8 @@ def obtener_tickets_del_dia():
 
 
 @administracion_bp.route('/api/administracion/ejecutar-corte', methods=['POST'])
-def ejecutar_corte_caja():
+@requiere_admin
+def ejecutar_corte_caja(usuario_sesion):
     """
     POST /api/administracion/ejecutar-corte
     Calcula el resumen del dia (o de la fecha enviada en el body),
@@ -302,7 +304,8 @@ def obtener_corte_por_fecha(fecha):
 
 
 @administracion_bp.route('/api/administracion/gastos', methods=['GET', 'POST'])
-def gestionar_gastos():
+@requiere_admin
+def gestionar_gastos(usuario_sesion):
     if request.method == 'POST':
         data     = request.json or {}
         concepto = data.get('concepto')
