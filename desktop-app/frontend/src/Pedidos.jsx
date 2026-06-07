@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useDialogo } from './components/Dialogo'
 const IconoMonitor = () => (
   <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -53,6 +53,26 @@ export default function Pedidos() {
   const [procesandoCobroWeb, setProcesandoCobroWeb] = useState(false);
   const { notificar, DialogoUI } = useDialogo()
 
+  // null = primera carga (no alertar); Set después = ids ya vistos
+  const idsVistos = useRef(null)
+
+  const reproducirBeep = () => {
+    try {
+      const ctx  = new (window.AudioContext || window.webkitAudioContext)()
+      const osc  = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.frequency.value = 880  // La5 — tono claro de notificación
+      gain.gain.setValueAtTime(0.3, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2)
+      osc.start(ctx.currentTime)
+      osc.stop(ctx.currentTime + 0.2)
+    } catch (e) {
+      // Navegador bloqueó audio (política de autoplay) — silencio, sin romper
+    }
+  }
+
   const cerrarModalCobro = () => {
     setPedidoWebACobrar(null)
     setMetodoPagoWeb('Efectivo')
@@ -89,7 +109,26 @@ export default function Pedidos() {
         if (!res.ok) throw new Error('Error en la respuesta del servidor');
         return res.json();
       })
-      .then(data => { setPedidos(Array.isArray(data) ? data : []); setCargando(false); })
+      .then(data => {
+        const lista       = Array.isArray(data) ? data : []
+        const idsActuales = new Set(lista.map(p => p.id_pedido))
+
+        if (idsVistos.current === null) {
+          // Primera carga: inicializar sin alertar
+          idsVistos.current = idsActuales
+        } else {
+          // Cargas posteriores: detectar ids que no estaban antes
+          const nuevos = [...idsActuales].filter(id => !idsVistos.current.has(id))
+          if (nuevos.length > 0) {
+            reproducirBeep()
+            notificar('Nuevo pedido recibido en cocina.', 'info')
+          }
+          idsVistos.current = idsActuales
+        }
+
+        setPedidos(lista)
+        setCargando(false)
+      })
       .catch(err => { console.error("Error cargando pedidos:", err); setError(err.message); setCargando(false); });
   };
 
