@@ -228,6 +228,33 @@ El botón "Regresar" llamaba directamente `setMesaSeleccionada(null)` sin verifi
 - ✅ Sin cambios en tickets, inventario, snapshots ni backend
 - ✅ Commit: `frontend: confirmar salida de vista de comanda` (2e98e19)
 
+### Corrección posterior (bug):
+- ✅ `confirmar` no estaba desestructurado en `useDialogo()` → ReferenceError al usar Regresar
+- ✅ Fix: `const { notificar, confirmar, DialogoUI } = useDialogo()`
+- ✅ `handleVolverAGrid()` ahora funciona correctamente con confirmación real
+- ✅ Commit: `frontend: corregir regreso y eliminar productos pendientes` (7906a4d)
+
+---
+
+## ✅ COMPLETADO: Eliminación de Productos Pendientes en Carrito
+
+### Problema original:
+No había forma de quitar un producto del carrito local (`comandaSesion`) antes de mandarlo a cocina. Si el mesero añadía un ítem por error, tenía que mandar todo a cocina o salir descartando el carrito completo.
+
+### Solución (`Mesas.jsx`):
+- ✅ Función `handleEliminarProductoPendiente(index)`:
+  ```js
+  setComandaSesion(prev => prev.filter((_, i) => i !== index))
+  ```
+- ✅ Botón `×` en cada ítem de `comandaSesion`:
+  - Estilo discreto: `text-red-400 hover:text-red-600`
+  - `e.stopPropagation()` para no abrir personalización al hacer clic en `×`
+  - El nombre del producto sigue siendo clickable para personalizar
+- ✅ Solo afecta productos **no enviados** (`comandaSesion`) — los ya comandados (`mesaSeleccionada.productos`) no tienen botón ×
+- ✅ Sin llamadas al backend
+- ✅ Sin cambios en inventario, tickets ni snapshots
+- ✅ Commit: `frontend: corregir regreso y eliminar productos pendientes` (7906a4d)
+
 ---
 
 ## ✅ COMPLETADO: Configuración de Número de Mesas
