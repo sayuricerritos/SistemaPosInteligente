@@ -217,6 +217,20 @@ def init_database():
             );
         """)
 
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS auditoria (
+                id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                fecha          TEXT NOT NULL DEFAULT (datetime('now')),
+                id_usuario     INTEGER,
+                nombre_usuario TEXT,
+                accion         TEXT NOT NULL,
+                modulo         TEXT NOT NULL,
+                detalle_json   TEXT DEFAULT '{}',
+                ip_address     TEXT,
+                resultado      TEXT DEFAULT 'OK'
+            );
+        """)
+
         # ---- Indices para optimización ----------------------------
         cursor.execute(
             "CREATE INDEX IF NOT EXISTS idx_sesiones_token "
@@ -229,6 +243,18 @@ def init_database():
         cursor.execute(
             "CREATE INDEX IF NOT EXISTS idx_sesiones_expires_at "
             "ON sesiones(expires_at);"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_auditoria_fecha "
+            "ON auditoria(fecha);"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_auditoria_id_usuario "
+            "ON auditoria(id_usuario);"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_auditoria_modulo "
+            "ON auditoria(modulo);"
         )
 
         # ---- Migrations defensivas ---------------------------------
