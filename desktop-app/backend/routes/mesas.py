@@ -105,14 +105,14 @@ def restaurar_mesas_desde_snapshots():
 def obtener_mesas():
     """
     Mapa del piso tolerante al esquema:
-      - Solo consulta id, numero_mesa, estado (columnas garantizadas).
-      - capacidad se entrega con valor por defecto (4) sin consultarla.
+      - Consulta id, numero_mesa, estado y capacidad.
+      - capacidad se lee desde SQLite; fallback 4 si viene NULL.
       - Fusiona la sesion activa para que el frontend reciba todo de una vez.
     """
     try:
         with get_db_connection() as conn:
             mesas_db = conn.execute(
-                "SELECT id AS id_mesa, numero_mesa, estado "
+                "SELECT id AS id_mesa, numero_mesa, estado, capacidad "
                 "FROM mesas ORDER BY CAST(numero_mesa AS INTEGER);"
             ).fetchall()
 
@@ -125,7 +125,7 @@ def obtener_mesas():
                     "id_mesa":     m['id_mesa'],
                     "numero_mesa": m['numero_mesa'],
                     "estado":      "Ocupada" if activa else m['estado'],
-                    "capacidad":   4,  # valor por defecto, el esquema semilla no lo garantiza
+                    "capacidad":   m['capacidad'] if m['capacidad'] is not None else 4,
                     "comensales":  activa.get('comensales', 0) if activa else 0,
                     "subtotal":    activa.get('subtotal', 0.0) if activa else 0.0,
                     "mesero":      activa.get('mesero', '') if activa else '',
