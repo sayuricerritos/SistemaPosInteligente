@@ -95,7 +95,7 @@ export default function Mesas() {
   const [enviandoComanda, setEnviandoComanda]           = useState(false);
   const [cerrandoCuenta, setCerrandoCuenta]             = useState(false);
 
-  const { notificar, DialogoUI } = useDialogo()
+  const { notificar, confirmar, DialogoUI } = useDialogo()
   const categories = ['Bebidas Calientes', 'Bebidas Frias', 'Panaderia', 'Alimentos'];
   const mostrarToast = (mensaje) => {
   setToastMsg(mensaje)
@@ -203,6 +203,10 @@ export default function Mesas() {
     .catch(err => notificar(`Error: ${err.message}`, 'error'))
     .finally(() => setEnviandoComanda(false));
   };
+
+  const handleEliminarProductoPendiente = (index) => {
+    setComandaSesion(prev => prev.filter((_, i) => i !== index))
+  }
 
   const handleVolverAGrid = async () => {
     // Si hay modal de personalización abierto, cerrarlo primero
@@ -372,10 +376,18 @@ export default function Mesas() {
                   </div>
                 ))}
                 {comandaSesion.map((item, index) => (
-                  <div key={item.uniqueId} onClick={() => abrirPersonalizacion(item, index)} className="bg-amber-50/50 p-2.5 rounded-xl border border-dashed border-amber-300 cursor-pointer hover:border-amber-500 transition-colors">
-                    <div className="flex justify-between font-black text-gray-800">
-                      <span>+ {item.nombre_producto}</span>
-                      <span>${calcularPrecioItem(item).toFixed(2)}</span>
+                  <div key={item.uniqueId} className="bg-amber-50/50 p-2.5 rounded-xl border border-dashed border-amber-300 transition-colors">
+                    <div className="flex justify-between font-black text-gray-800 items-start">
+                      <span onClick={() => abrirPersonalizacion(item, index)} className="flex-1 cursor-pointer hover:text-[#8B5A2B] transition-colors">+ {item.nombre_producto}</span>
+                      <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                        <span>${calcularPrecioItem(item).toFixed(2)}</span>
+                        <button
+                          type="button"
+                          onClick={e => { e.stopPropagation(); handleEliminarProductoPendiente(index) }}
+                          className="text-red-400 hover:text-red-600 hover:bg-red-50 rounded px-1 transition-colors leading-none font-black text-sm"
+                          title="Quitar del carrito"
+                        >×</button>
+                      </div>
                     </div>
                     {item.modificadores?.base && <span className="text-3xs text-gray-400 block">* {item.modificadores.base}</span>}
                     {item.extrasSeleccionados?.length > 0 && (
