@@ -50,8 +50,9 @@ export default function Configuracion({ usuario }) {
             <input type="text" value={config.empresa} onChange={e => setConfig({...config, empresa: e.target.value})} className="w-full p-2.5 border rounded-xl bg-gray-50 font-medium text-gray-800 focus:outline-none" />
           </div>
           <div>
-            <label className="block mb-1">Total de Mesas en Piso (Táctil):</label>
+            <label className="block mb-1">Número de mesas registrado (referencial):</label>
             <input type="number" min="1" max="20" value={config.limite_mesas} onChange={e => setConfig({...config, limite_mesas: e.target.value})} className="w-full p-2.5 border rounded-xl bg-gray-50 font-medium text-gray-800 focus:outline-none" />
+            <p className="text-[10px] text-gray-400 font-medium mt-1 normal-case">Este valor es informativo. El panel de Mesas se genera desde la tabla de mesas del sistema.</p>
           </div>
         </div>
 
