@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useDialogo } from './components/Dialogo'
 const IconoTarjeta = ({ className = "w-4 h-4" }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
@@ -57,6 +58,7 @@ export default function Llevar() {
   const [metodoPago, setMetodoPago]                       = useState('Efectivo')
   const [efectivoRecibido, setEfectivoRecibido]           = useState('')
   const [propina, setPropina]                             = useState(0)
+  const { notificar, DialogoUI } = useDialogo()
 
   const categorias = ['Bebidas Calientes', 'Bebidas Frias', 'Panaderia', 'Alimentos']
 
@@ -133,14 +135,14 @@ export default function Llevar() {
         body: JSON.stringify({ productos: carritoLlevar, total: totalFinal, metodo_pago: metodoPago })
       })
       if (!respuesta.ok) throw new Error('El servidor local rechazo la operacion.')
-      alert('Venta completada. Inventario actualizado.')
+      notificar('Venta completada. Inventario actualizado.', 'exito')
       setCarritoLlevar([])
       setMostrarModalPago(false)
       setPropina(0)
       setEfectivoRecibido('')
     } catch (err) {
       console.error("Error en flujo de caja:", err)
-      alert(`Error al procesar la venta: ${err.message}`)
+      notificar(`Error al procesar la venta: ${err.message}`, 'error')
     }
   }
 
@@ -452,6 +454,7 @@ export default function Llevar() {
           </div>
         </div>
       )}
+      <DialogoUI />
     </div>
   )
 }
