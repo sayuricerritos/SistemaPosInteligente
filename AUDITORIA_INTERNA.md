@@ -326,7 +326,10 @@ Agregar `content-start` (`align-content: start`) al contenedor de la grilla en l
 | Manejo global 401/403 - Implementado | ⚠️ Pendiente validación visual | 🟡 Media |
 | Auditoría de operaciones | ⚠️ Implementado, validación parcial | 🟡 Media |
 | Corrección visual grillas de productos | ✅ Completado | - |
+| Web de pedidos (Vercel + ngrok) | ✅ Completado | - |
+| Flujo completo pedidos web (Cocina → Listo → Cobro) | ✅ Completado | - |
 | Persistencia de sesión (localStorage) | ❌ Futuro | 🟡 Media |
+| API/base online (PostgreSQL/Render) | ❌ Fase futura | 🟡 Media |
 
 ---
 
@@ -347,6 +350,89 @@ Agregar `content-start` (`align-content: start`) al contenedor de la grilla en l
 
 ### Paso 4: Validación
 8. ✅ Pruebas manuales: Admin/Cajero exitosas
+
+---
+
+## ✅ COMPLETADO: Web de Pedidos (Vercel + ngrok + Flask local)
+
+### Arquitectura de la demo:
+```
+Cliente (web) → Vercel (web-site)
+                    ↓ VITE_API_URL
+              ngrok (HTTPS público)
+                    ↓
+              Flask local (http://localhost:5000)
+                    ↓
+              SQLite local (pos_inteligente.db)
+                    ↓
+              Monitor de Cocina (desktop)
+```
+
+### Componentes implementados:
+
+**web-site (Vercel):**
+- ✅ `App.jsx`: catálogo de productos, carrito, formulario de cliente y hora de recogida
+- ✅ `VITE_API_URL` configurable por variable de entorno en Vercel
+- ✅ `ngrok-skip-browser-warning: true` en todos los fetch — evita interceptación de ngrok
+- ✅ Categorías sincronizadas con la BD: `Bebidas Calientes`, `Bebidas Frias`, `Panaderia`, `Alimentos`
+- ✅ Nombre del sistema: **Cafetería UAEMex**
+- ✅ Diseño responsive: móvil (1 col, scroll tabs), tablet, escritorio (2+1 col, carrito sticky)
+- ✅ Sin emojis, sin ubicación ni horario
+- ✅ `.env.example` incluido, `.gitignore` protege `.env`
+- ✅ Desplegada en: `https://sistema-pos-inteligente.vercel.app/`
+
+**Backend (`pedidos.py`):**
+- ✅ `POST /api/pedidos/web` — existente, crea comanda `tipo='comanda'`, `estado='En Cocina'`, `metodo_pago='Web'`
+- ✅ `GET /api/pedidos/activos` — modificado para incluir `estado IN ('En Cocina', 'Listo') AND tipo='comanda'`; devuelve `estado` y `metodo_pago`
+- ✅ `POST /api/pedidos/despachar` — si `metodo_pago='Web'` → `estado='Listo'` (inventario descontado); otros canales → `'Completado'` sin cambio
+- ✅ `POST /api/pedidos/web/cobrar` — nuevo endpoint:
+  - Guard: `estado='Listo'` requerido (anti-doble-cobro 409)
+  - Guard: `metodo_pago='Web'` (no aplica a pedidos de mesa)
+  - Crea `tipo='ticket'` con `metodo_pago` real (Efectivo/Tarjeta)
+  - Cierra comanda a `'Completado'`
+  - **No descuenta inventario** (ya ocurrió al despachar)
+
+**Frontend Monitor de Cocina (`Pedidos.jsx`):**
+- ✅ Badge "EN COLA" (ámbar) para `estado='En Cocina'`, badge "LISTO" (verde) para `estado='Listo'`
+- ✅ Borde del card: ámbar para En Cocina, verde para Listo
+- ✅ Botón "Cobrar pedido" abre modal de pago — solo para `esWeb && esListo`
+- ✅ Modal de pago con layout idéntico a Mesas/Llevar (grid 3+2):
+  - Selector Efectivo / Tarjeta
+  - Si Efectivo: input de monto, cálculo de cambio, botón bloqueado si recibido < total
+  - Si Tarjeta: sin campo de efectivo
+  - Sin propina (backend no la registra todavía — pendiente futuro)
+- ✅ Al cobrar: `POST /api/pedidos/web/cobrar` → cerrar modal → refrescar monitor
+- ✅ Pedidos normales (Mesas, Llevar): botón Despachar sin cambios
+
+### Flujo completo validado:
+```
+1. Cliente ordena en web          → comanda 'En Cocina' [Monitor: badge AMBAR]
+2. Cocina despacha                → inventario descontado, 'Listo' [Monitor: badge VERDE]
+3. Cajero presiona Cobrar pedido  → modal de pago
+4. Selecciona Efectivo o Tarjeta  → confirma cobro
+5. Backend crea ticket 'ticket'   → aparece en corte diario de Administración
+6. Comanda → 'Completado'         → desaparece del Monitor
+```
+
+### Garantías:
+- ✅ Sin doble descuento de inventario: cobro no toca insumos
+- ✅ Sin doble ticket: guard 409 si `estado != 'Listo'`
+- ✅ Mesas y Para Llevar: sin cambios
+- ✅ La app de escritorio sigue siendo el sistema principal
+- ✅ La web es canal adicional de captación de pedidos (solo recepción)
+
+### Commits:
+- ✅ `web-site: usar VITE_API_URL para API de pedidos` (7e3ff17)
+- ✅ `web-site: corregir Tailwind v4 y header ngrok` (f2437e3)
+- ✅ `web-site: rediseñar pagina de pedidos para demo` (5c902d8)
+- ✅ `web-site: mejorar responsive de pagina de pedidos` (99f1e2a)
+- ✅ `backend: agregar cobro de pedidos web listos` (14bcc75)
+- ✅ `frontend: cobrar pedidos web listos` (e258ada)
+- ✅ `frontend: agregar modal de pago a pedidos web` (1c9e344)
+
+### Pendiente futuro:
+- ⏳ Propina en pedidos web (el backend no la registra todavía)
+- ⏳ API en línea con base de datos cloud (PostgreSQL/Render) — fase futura si se requiere antes de entrega
 
 ---
 
