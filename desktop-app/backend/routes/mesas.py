@@ -304,6 +304,7 @@ def cerrar_mesa():
 
         if numero_mesa in mesas_activas:
             del mesas_activas[numero_mesa]
+        _borrar_snapshot_mesa(numero_mesa)
 
         return jsonify({
             "mensaje":     f"Mesa {numero_mesa} liquidada y liberada",
