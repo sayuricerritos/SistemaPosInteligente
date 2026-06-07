@@ -146,9 +146,17 @@ export default function Llevar() {
     }
   }
 
-  const opcionesMesaConfig = productoAEditar
-    ? obtenerOpcionesDePersonalizacion(productoAEditar.categoria)
-    : { modificadores: [], extras: [] }
+  const opcionesMesaConfig = (() => {
+    if (!productoAEditar) return { modificadores: [], extras: [] }
+    const modificadores = obtenerOpcionesDePersonalizacion(productoAEditar.categoria).modificadores
+    const raw = productoAEditar.extras_disponibles
+    let extras = []
+    if (Array.isArray(raw)) extras = raw
+    else if (typeof raw === 'string' && raw.trim()) {
+      try { const p = JSON.parse(raw); if (Array.isArray(p)) extras = p } catch { /* JSON invalido */ }
+    }
+    return { modificadores, extras }
+  })()
 
   return (
     <div className="h-[calc(100vh-120px)] flex flex-col space-y-4">
