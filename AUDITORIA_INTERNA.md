@@ -230,22 +230,29 @@ El botón "Regresar" llamaba directamente `setMesaSeleccionada(null)` sin verifi
 
 ---
 
-## ⏳ PENDIENTE: Configuración de Número de Mesas
+## ✅ COMPLETADO: Configuración de Número de Mesas
 
-### Síntoma:
-El campo "Total de Mesas en Piso" en la pantalla Configuración no coincide necesariamente con el número de mesas visible en el panel Mesas. El panel Mesas carga las filas reales de la tabla `mesas` en SQLite (8 por seed), mientras que `configuracion_sistema["limite_mesas"]` es un valor en memoria que no sincroniza con esa tabla.
+### Diagnóstico:
+`limite_mesas` en `configuracion_sistema` (RAM) nunca estuvo vinculado a la tabla `mesas` en SQLite. El panel Mesas siempre usó las filas reales de la tabla. El campo en Configuración mostraba un valor distinto (6 por defecto en state.py) mientras que el panel mostraba 8 mesas reales, generando confusión operativa.
 
-### Auditoría técnica pendiente:
-- [ ] Verificar si `configuracion_sistema["limite_mesas"]` es leído por `Mesas.jsx` en algún punto
-- [ ] Verificar si el panel Mesas usa el conteo de filas SQLite o el valor de configuración
-- [ ] Verificar si `POST /api/configuracion` modifica de alguna forma la tabla `mesas`
-- [ ] Definir fuente de verdad: ¿`configuracion_sistema`, tabla `mesas`, o sincronizar ambos?
-- [ ] Si se decide sincronizar: revisar implicaciones (mesas con cuenta abierta, snapshots activos)
+### Decisión técnica (Opción B — menor riesgo):
+No se implementó sincronización automática porque:
+- Sincronizar `limite_mesas` → tabla `mesas` requiere lógica de guards para mesas ocupadas y snapshots activos
+- El número de mesas de una cafetería raramente cambia
+- La sincronización automática presentaba riesgo de borrar mesas con sesiones activas
 
-**Archivos a revisar antes de implementar:**
-`Configuracion.jsx`, `configuracion.py`, `state.py`, `Mesas.jsx`, `database.py` (seed 8 mesas)
+### Solución implementada:
+- ✅ Auditoría técnica confirmó que `Mesas.jsx` y `mesas.py` **no leen** `limite_mesas` en ningún punto
+- ✅ La tabla `mesas` en SQLite es la fuente de verdad exclusiva del panel Mesas
+- ✅ `Configuracion.jsx`: campo `limite_mesas` eliminado de la UI (commit `021494d`)
+- ✅ `Configuracion.jsx`: campo y nota referencial también eliminados (commit `fac485b`)
+- ✅ El estado `config.limite_mesas` sigue cargándose en el frontend pero sin renderizarse
+- ✅ Nombre del Establecimiento pasa a ancho completo sin hueco vacío
 
-**Riesgo si se implementa sin auditar:** Eliminar mesas con sesiones activas o snapshots podría corromper el estado del piso.
+### Garantías:
+- ✅ No se crean ni eliminan mesas desde Configuración
+- ✅ Snapshots, mesas activas, comandas y tickets no afectados
+- ✅ Backend, configuracion.py, state.py, mesas.py: sin cambios funcionales
 
 ---
 
@@ -264,7 +271,7 @@ El campo "Total de Mesas en Piso" en la pantalla Configuración no coincide nece
 | Persistencia de mesas activas | ✅ Completado | - |
 | Inconsistencia comensales (4 vs 5) | ✅ Completado | - |
 | Botón Atrás en vista de comanda | ✅ Completado | - |
-| Configuración de número de mesas | ⏳ Pendiente auditoría | 🟡 Media |
+| Configuración de número de mesas | ✅ Completado | - |
 | Auditoría de operaciones | ❌ Futuro | 🟡 Media |
 | Persistencia de sesión (localStorage) | ❌ Futuro | 🟡 Media |
 | Manejo global 401/403 | ❌ Futuro | 🟡 Media |
@@ -293,20 +300,19 @@ El campo "Total de Mesas en Piso" en la pantalla Configuración no coincide nece
 
 ## 📋 Siguiente Bloque Recomendado
 
-### Opción A — Inconsistencias UX en Mesas (Prioridad Media)
-Las tres inconsistencias documentadas arriba son independientes entre sí y pueden implementarse en orden de menor a mayor complejidad:
-1. **Botón Atrás** — Solo frontend, bajo riesgo, alta UX
-2. **Inconsistencia comensales** — Frontend + validación, bajo riesgo
-3. **Configuración de mesas** — Backend + frontend + decisión de arquitectura, mayor complejidad
-
-### Opción B — Mejoras de Sesión (Prioridad Baja)
+### Opción A — Mejoras de Sesión (Prioridad Baja)
 - localStorage para persistir sesión entre recargas del frontend
 - Manejo global 401/403 (interceptor centralizado)
 - Renovación de token por actividad
 
-### Opción C — Auditoría de Operaciones (Prioridad Baja)
+### Opción B — Auditoría de Operaciones (Prioridad Baja)
 - Tabla `auditoria` con usuario, acción, entidad, timestamp
 - Registrar: crear/editar/eliminar usuarios, productos, cortes, ajustes de inventario
+
+### Opción C — Gestión dinámica de mesas (Prioridad Baja, Opción D anterior)
+- Endpoint `POST /api/mesas/sincronizar` que solo agrega mesas nuevas
+- Nunca borra mesas ocupadas ni con snapshots
+- Requiere auditoría de guards antes de implementar
 
 ---
 
