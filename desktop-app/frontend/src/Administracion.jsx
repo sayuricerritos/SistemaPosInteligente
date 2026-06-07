@@ -45,15 +45,17 @@ export default function Administracion() {
     fecha:        '',
   };
 
-  const [gastos,        setGastos]        = useState([]);
-  const [corte,         setCorte]         = useState(CORTE_VACIO);
-  const [tickets,       setTickets]       = useState([]);
-  const [fechaFiltro,   setFechaFiltro]   = useState(new Date().toISOString().split('T')[0]);
-  const [seccionActiva, setSeccionActiva] = useState('Finanzas');
-  const [concepto,      setConcepto]      = useState('');
-  const [montoGasto,    setMontoGasto]    = useState('');
-  const [ejecutando,    setEjecutando]    = useState(false);
-  const [mensajeCorte,  setMensajeCorte]  = useState(null);
+  const [gastos,                  setGastos]                  = useState([]);
+  const [corte,                   setCorte]                   = useState(CORTE_VACIO);
+  const [tickets,                 setTickets]                 = useState([]);
+  const [fechaFiltro,             setFechaFiltro]             = useState(new Date().toISOString().split('T')[0]);
+  const [seccionActiva,           setSeccionActiva]           = useState('Finanzas');
+  const [concepto,                setConcepto]                = useState('');
+  const [montoGasto,              setMontoGasto]              = useState('');
+  const [ejecutando,              setEjecutando]              = useState(false);
+  const [mensajeCorte,            setMensajeCorte]            = useState(null);
+  const [corteHistorico,          setCorteHistorico]          = useState(null);
+  const [cargandoCorteHistorico,  setCargandoCorteHistorico]  = useState(false);
   const { notificar, confirmar, DialogoUI } = useDialogo()
 
   const cargarDatosAdministrativos = () => {
@@ -71,6 +73,22 @@ export default function Administracion() {
       .then(r => r.json())
       .then(d => setTickets(Array.isArray(d) ? d : []))
       .catch(e => console.error("Error tickets:", e));
+
+    setCargandoCorteHistorico(true)
+    fetch(`http://127.0.0.1:5000/api/administracion/cortes-historicos/fecha/${fechaFiltro}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.existe && d.corte) {
+          setCorteHistorico(d.corte)
+        } else {
+          setCorteHistorico(null)
+        }
+      })
+      .catch(e => {
+        console.error("Error corte historico:", e)
+        setCorteHistorico(null)
+      })
+      .finally(() => setCargandoCorteHistorico(false))
   };
 
   useEffect(() => {
@@ -170,11 +188,11 @@ export default function Administracion() {
             </div>
             <button
               onClick={handleEjecutarCorte}
-              disabled={ejecutando}
+              disabled={ejecutando || corteHistorico !== null}
               className="flex items-center gap-2 px-5 py-2.5 bg-[#8B5A2B] hover:bg-[#7A4F25] text-white font-black text-3xs uppercase rounded-xl shadow transition-colors disabled:bg-gray-300 disabled:text-gray-400"
             >
               <IconoCorte />
-              {ejecutando ? 'Ejecutando...' : 'Ejecutar Corte de Caja'}
+              {corteHistorico ? 'Corte ya ejecutado' : (ejecutando ? 'Ejecutando...' : 'Ejecutar Corte de Caja')}
             </button>
           </div>
 
@@ -186,7 +204,56 @@ export default function Administracion() {
             </div>
           )}
 
-          {/* TARJETAS KPI SEGMENTADAS */}
+          {/* SECCIÓN: CORTE HISTÓRICO */}
+          <div className="bg-white border rounded-2xl p-4 shadow-2xs">
+            <div className="flex items-center justify-between pb-3 border-b">
+              <span className="text-sm font-black text-gray-800 uppercase">
+                {corteHistorico ? '✓ Corte Guardado para esta Fecha' : 'Sin Corte Registrado'}
+              </span>
+              {cargandoCorteHistorico && <span className="text-3xs text-gray-400 animate-pulse">Cargando...</span>}
+            </div>
+            {!cargandoCorteHistorico && corteHistorico === null && (
+              <p className="text-center text-gray-400 py-4 font-medium text-3xs">No hay corte registrado para esta fecha.</p>
+            )}
+            {corteHistorico && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <span className="text-3xs text-gray-400 uppercase font-bold block mb-1">Efectivo</span>
+                  <span className="text-lg font-black font-mono text-gray-800">${(corteHistorico.efectivo ?? 0).toFixed(2)}</span>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <span className="text-3xs text-gray-400 uppercase font-bold block mb-1">Tarjeta</span>
+                  <span className="text-lg font-black font-mono text-gray-800">${(corteHistorico.tarjeta ?? 0).toFixed(2)}</span>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <span className="text-3xs text-gray-400 uppercase font-bold block mb-1">Total Ventas</span>
+                  <span className="text-lg font-black font-mono text-gray-800">${(corteHistorico.total_ventas ?? 0).toFixed(2)}</span>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <span className="text-3xs text-gray-400 uppercase font-bold block mb-1">Tickets</span>
+                  <span className="text-lg font-black font-mono text-gray-800">{corteHistorico.tickets ?? 0}</span>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <span className="text-3xs text-gray-400 uppercase font-bold block mb-1">Gastos</span>
+                  <span className="text-lg font-black font-mono text-red-600">-${(corteHistorico.total_gastos ?? 0).toFixed(2)}</span>
+                </div>
+                <div className="bg-emerald-50 p-3 rounded-lg border border-emerald-200">
+                  <span className="text-3xs text-emerald-700 uppercase font-bold block mb-1">Balance Neto</span>
+                  <span className="text-lg font-black font-mono text-emerald-700">${(corteHistorico.balance_neto ?? 0).toFixed(2)}</span>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-lg md:col-span-2">
+                  <span className="text-3xs text-gray-400 uppercase font-bold block mb-1">Hora de Ejecución</span>
+                  <span className="text-sm font-mono text-gray-700">{corteHistorico.ejecutado_at || '--'}</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* TARJETAS KPI SEGMENTADAS: CÁLCULO EN TIEMPO REAL (no persistido) */}
+          <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 mb-4">
+            <span className="text-3xs text-blue-700 font-black uppercase">ℹ️ Resumen en Tiempo Real</span>
+            <p className="text-3xs text-blue-600 font-medium">Estos valores se calculan dinámicamente basados en transacciones del día. Compara con el corte guardado arriba.</p>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
             {/* Efectivo */}
             <div className="bg-white border border-emerald-200 rounded-2xl p-4 shadow-2xs flex flex-col justify-between h-24">
