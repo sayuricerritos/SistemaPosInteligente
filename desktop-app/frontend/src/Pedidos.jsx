@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useDialogo } from './components/Dialogo'
 const IconoMonitor = () => (
   <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
@@ -30,6 +31,7 @@ export default function Pedidos() {
   const [pedidos, setPedidos]   = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError]       = useState(null);
+  const { notificar, DialogoUI } = useDialogo()
 
   const obtenerPedidos = () => {
     fetch('http://127.0.0.1:5000/api/pedidos/activos')
@@ -113,8 +115,8 @@ export default function Pedidos() {
                         body: JSON.stringify({ id_pedido: pedido.id_pedido, numero_mesa: origen })
                       })
                       .then(res => { if (!res.ok) throw new Error('Error al despachar'); return res.json(); })
-                      .then(() => { alert(`Orden de ${origen} despachada con exito.`); obtenerPedidos(); })
-                      .catch(err => alert(`Error: ${err.message}`));
+                      .then(() => { notificar(`Orden de ${origen} despachada con exito.`, 'exito'); obtenerPedidos(); })
+                      .catch(err => notificar(`Error: ${err.message}`, 'error'));
                     }}
                     className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl font-bold transition-all flex items-center gap-2"
                   >
@@ -126,6 +128,7 @@ export default function Pedidos() {
           })}
         </div>
       )}
+      <DialogoUI />
     </div>
   );
 }

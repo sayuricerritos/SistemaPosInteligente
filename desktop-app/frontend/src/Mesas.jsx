@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useDialogo } from './components/Dialogo'
 import { noNeg } from './helpers/validacion'
 const IconoPersonas = ({ className = "w-3.5 h-3.5" }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -91,6 +92,7 @@ export default function Mesas() {
   const [efectivoRecibido, setEfectivoRecibido]         = useState('');
   const [propina, setPropina]                           = useState(0);
 
+  const { notificar, DialogoUI } = useDialogo()
   const categories = ['Bebidas Calientes', 'Bebidas Frias', 'Panaderia', 'Alimentos'];
   const mostrarToast = (mensaje) => {
   setToastMsg(mensaje)
@@ -154,7 +156,7 @@ export default function Mesas() {
     })
     .then(res => { if (!res.ok) return res.json().then(err => { throw new Error(err.error) }); return res.json(); })
     .then(() => { refrescarEcosistemaPiso(); setMostrarModalApertura(false); })
-    .catch(err => alert(`Error: ${err.message}`));
+    .catch(err => notificar(`Error: ${err.message}`, 'error'));
   };
 
   const calcularPrecioItem = (item) => {
@@ -192,7 +194,7 @@ export default function Mesas() {
       setTimeout(() => setComandaSesion([]), 800);
        refrescarEcosistemaPiso();
     })
-    .catch(err => alert(`Error: ${err.message}`));
+    .catch(err => notificar(`Error: ${err.message}`, 'error'));
   };
 
   const liquidarCuentaMesa = () => {
@@ -201,8 +203,8 @@ export default function Mesas() {
       body: JSON.stringify({ numero_mesa: mesaSeleccionada.numero_mesa, total: mesaSeleccionada.subtotal + parseFloat(propina || 0), metodo_pago: metodoPago, productos: mesaSeleccionada.productos })
     })
     .then(res => { if (!res.ok) return res.json().then(err => { throw new Error(err.error) }); return res.json(); })
-    .then(() => { refrescarEcosistemaPiso(); setMesaSeleccionada(null); setMostrarModalPago(false); setPropina(0); setEfectivoRecibido(''); alert('Cuenta liquidada con exito. Mesa disponible.'); })
-    .catch(err => alert(`Error: ${err.message}`));
+    .then(() => { refrescarEcosistemaPiso(); setMesaSeleccionada(null); setMostrarModalPago(false); setPropina(0); setEfectivoRecibido(''); notificar('Cuenta liquidada con exito. Mesa disponible.', 'exito'); })
+    .catch(err => notificar(`Error: ${err.message}`, 'error'));
   };
 
   const opcionesMesaConfig = productoAEditar ? obtenerOpcionesDePersonalizacion(productoAEditar.categoria) : { modificadores: [], extras: [] };
@@ -519,6 +521,7 @@ export default function Mesas() {
           </div>
         </div>
       )}
+      <DialogoUI />
     </div>
   );
 }
