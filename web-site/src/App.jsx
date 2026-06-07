@@ -2,11 +2,19 @@ import React, { useState, useEffect } from 'react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
 
+// Headers comunes para todos los fetch — incluye ngrok-skip-browser-warning
+// para evitar que ngrok intercepte los requests con su página de advertencia
+const FETCH_HEADERS = {
+  'Content-Type': 'application/json',
+  'ngrok-skip-browser-warning': 'true',
+};
+
 export default function App() {
   const [productos, setProductos] = useState([]);
   const [categoriaActiva, setCategoriaActiva] = useState('Bebidas Calientes');
   const [carrito, setCarrito] = useState([]);
-  
+  const [errorMenu, setErrorMenu] = useState(null);
+
   // Formulario de Pedido para Recogida
   const [nombreCliente, setNombreCliente] = useState('');
   const [horaRecogida, setHoraRecogida] = useState('');
@@ -15,12 +23,19 @@ export default function App() {
   const categories = ['Bebidas Calientes', 'Bebidas Frias', 'Panaderia', 'Alimentos'];
 
   useEffect(() => {
-    fetch(`${API_URL}/api/productos`)
-      .then(res => res.json())
+    fetch(`${API_URL}/api/productos`, { headers: FETCH_HEADERS })
+      .then(res => {
+        if (!res.ok) throw new Error(`Error ${res.status}`);
+        return res.json();
+      })
       .then(data => {
         if (Array.isArray(data)) setProductos(data);
+        else throw new Error('Respuesta inesperada del servidor');
       })
-      .catch(err => console.error("Error al sincronizar menú web:", err));
+      .catch(err => {
+        console.error("Error al sincronizar menú web:", err);
+        setErrorMenu('No se pudo conectar con la cafetería. Intenta de nuevo en un momento.');
+      });
     
     const ahora = new Date();
     ahora.setMinutes(ahora.getMinutes() + 20);
@@ -77,9 +92,7 @@ export default function App() {
     // DISPARO REAL: Mandar el pedido al servidor Flask
     fetch(`${API_URL}/api/pedidos/web`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: FETCH_HEADERS,
       body: JSON.stringify(datosPedido)
     })
     .then(res => {
@@ -157,7 +170,11 @@ export default function App() {
 
           {/* Grid de Productos */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {productos.filter(p => p.categoria === categoriaActiva).length === 0 ? (
+            {errorMenu ? (
+              <div className="col-span-2 text-center py-10 bg-red-50 border border-red-200 rounded-xl text-xs font-bold text-red-700">
+                ⚠️ {errorMenu}
+              </div>
+            ) : productos.filter(p => p.categoria === categoriaActiva).length === 0 ? (
               <div className="col-span-2 text-center py-10 bg-white border border-dashed rounded-xl text-3xs font-black text-gray-400 uppercase tracking-widest">
                 🔄 Sincronizando menú con la barra central...
               </div>
