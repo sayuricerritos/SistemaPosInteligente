@@ -12,6 +12,7 @@ import ast
 import json
 from flask import Blueprint, jsonify, request
 from database import get_db_connection
+from routes.decoradores import requiere_admin
 
 productos_bp = Blueprint('productos', __name__)
 
@@ -28,24 +29,9 @@ def _parse_field(value):
             return []
 
 
-@productos_bp.route('/api/productos', methods=['GET', 'POST'])
-def gestionar_productos_menu():
-    if request.method == 'POST':
-        data = request.json or {}
-        try:
-            with get_db_connection() as conn:
-                conn.execute(
-                    "INSERT INTO productos "
-                    "(nombre_producto, precio_venta, categoria, insumos_receta, extras_disponibles) "
-                    "VALUES (?, ?, ?, '[]', '[]');",
-                    (data['nombre_producto'], float(data['precio_venta']),
-                     data.get('categoria', '')),
-                )
-            return jsonify({"mensaje": "Producto guardado"}), 200
-        except Exception as e:
-            print(f"[PRODUCTOS ERROR POST]: {e}")
-            return jsonify({"error": str(e)}), 500
-
+@productos_bp.route('/api/productos', methods=['GET'])
+def obtener_productos():
+    """GET: listar todos los productos (público)."""
     try:
         with get_db_connection() as conn:
             cursor = conn.cursor()
@@ -70,27 +56,30 @@ def gestionar_productos_menu():
         return jsonify({"error": str(e)}), 500
 
 
-@productos_bp.route('/api/productos/<int:id_producto>', methods=['PUT', 'DELETE'])
-def gestionar_producto_individual(id_producto):
-    """
-    DELETE: eliminacion fisica. WHERE usa la columna real 'id'.
-    PUT:    actualizacion de datos basicos.
-    """
-    if request.method == 'DELETE':
-        try:
-            with get_db_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute("SELECT id FROM productos WHERE id = ?;", (id_producto,))
-                if not cursor.fetchone():
-                    return jsonify({"error": "Producto no encontrado"}), 404
-                conn.execute("DELETE FROM productos WHERE id = ?;", (id_producto,))
-            print(f"[PRODUCTOS] ID {id_producto} eliminado del catalogo.")
-            return jsonify({"mensaje": "Producto eliminado del catalogo"}), 200
-        except Exception as e:
-            print(f"[PRODUCTOS ERROR DELETE]: {e}")
-            return jsonify({"error": str(e)}), 500
+@productos_bp.route('/api/productos', methods=['POST'])
+@requiere_admin
+def crear_producto(usuario_sesion):
+    """POST: crear nuevo producto (solo admin)."""
+    data = request.json or {}
+    try:
+        with get_db_connection() as conn:
+            conn.execute(
+                "INSERT INTO productos "
+                "(nombre_producto, precio_venta, categoria, insumos_receta, extras_disponibles) "
+                "VALUES (?, ?, ?, '[]', '[]');",
+                (data['nombre_producto'], float(data['precio_venta']),
+                 data.get('categoria', '')),
+            )
+        return jsonify({"mensaje": "Producto guardado"}), 200
+    except Exception as e:
+        print(f"[PRODUCTOS ERROR POST]: {e}")
+        return jsonify({"error": str(e)}), 500
 
-    # PUT
+
+@productos_bp.route('/api/productos/<int:id_producto>', methods=['PUT'])
+@requiere_admin
+def actualizar_producto(id_producto, usuario_sesion):
+    """PUT: actualizar producto existente (solo admin)."""
     data      = request.json or {}
     nombre    = data.get('nombre_producto')
     precio    = data.get('precio_venta')
@@ -109,8 +98,28 @@ def gestionar_producto_individual(id_producto):
         return jsonify({"error": str(e)}), 500
 
 
+@productos_bp.route('/api/productos/<int:id_producto>', methods=['DELETE'])
+@requiere_admin
+def eliminar_producto(id_producto, usuario_sesion):
+    """DELETE: eliminar producto (solo admin)."""
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id FROM productos WHERE id = ?;", (id_producto,))
+            if not cursor.fetchone():
+                return jsonify({"error": "Producto no encontrado"}), 404
+            conn.execute("DELETE FROM productos WHERE id = ?;", (id_producto,))
+        print(f"[PRODUCTOS] ID {id_producto} eliminado del catalogo.")
+        return jsonify({"mensaje": "Producto eliminado del catalogo"}), 200
+    except Exception as e:
+        print(f"[PRODUCTOS ERROR DELETE]: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 @productos_bp.route('/api/productos/guardar-receta', methods=['POST'])
-def guardar_receta_producto():
+@requiere_admin
+def guardar_receta_producto(usuario_sesion):
+    """POST: vincular receta a producto (solo admin)."""
     data        = request.json or {}
     id_producto = data.get('id_producto')
     insumos     = data.get('insumos', [])
@@ -126,8 +135,10 @@ def guardar_receta_producto():
 
 
 @productos_bp.route('/api/productos/guardar-extras', methods=['POST'])
-def guardar_extras_producto():
+@requiere_admin
+def guardar_extras_producto(usuario_sesion):
     """
+    POST: asignar extras a producto (solo admin).
     Extras en formato completo con id_insumo y cantidad_descuento.
     WHERE usa la columna real 'id'.
     """
