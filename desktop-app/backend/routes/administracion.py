@@ -17,7 +17,7 @@ import numpy as np
 from sklearn.linear_model import LinearRegression
 from datetime import datetime
 from flask import Blueprint, jsonify, request
-from database import get_db_connection
+from database import get_db_connection, registrar_auditoria
 from routes.decoradores import requiere_admin
 
 administracion_bp = Blueprint('administracion', __name__)
@@ -230,6 +230,20 @@ def ejecutar_corte_caja(usuario_sesion):
             )
 
         print(f"[ADMIN] Corte ejecutado para {fecha_corte}: balance ${balance_neto:.2f}")
+        registrar_auditoria(
+            usuario_sesion,
+            accion  = 'EJECUTAR_CORTE',
+            modulo  = 'ADMINISTRACION',
+            detalle = {
+                'fecha':        fecha_corte,
+                'efectivo':     round(efectivo, 2),
+                'tarjeta':      round(tarjeta, 2),
+                'total_ventas': round(total_ventas, 2),
+                'total_gastos': round(total_gastos, 2),
+                'balance_neto': round(balance_neto, 2),
+                'tickets':      tickets,
+            }
+        )
         return jsonify({
             "mensaje":      "Corte de caja ejecutado y persistido con exito",
             "fecha":        fecha_corte,
@@ -320,6 +334,16 @@ def gestionar_gastos(usuario_sesion):
                     "INSERT INTO gastos (concepto, monto, fecha, fecha_completa) VALUES (?,?,?,?);",
                     (concepto, monto, fecha_hoy, fecha_completa),
                 )
+            registrar_auditoria(
+                usuario_sesion,
+                accion  = 'REGISTRAR_GASTO',
+                modulo  = 'ADMINISTRACION',
+                detalle = {
+                    'concepto': concepto,
+                    'monto':    monto,
+                    'fecha':    fecha_hoy,
+                }
+            )
             return jsonify({"mensaje": "Gasto registrado con exito"}), 200
         except Exception as e:
             return jsonify({"error": str(e)}), 500
