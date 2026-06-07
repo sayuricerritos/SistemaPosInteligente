@@ -12,6 +12,7 @@ CAMBIOS:
 
 import os
 import sys
+import json
 import sqlite3
 from contextlib import contextmanager
 
@@ -82,6 +83,48 @@ def _migration_add_column(cursor, table, column_def):
     if col_name not in cols:
         cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column_def};")
         print(f"[DB] Migration: {table}.{col_name} agregada.")
+
+
+def registrar_auditoria(usuario_sesion, accion, modulo, detalle=None, resultado='OK'):
+    """
+    Registra una operación sensible en la tabla auditoria.
+    Falla silenciosamente: nunca interrumpe el flujo principal.
+
+    Parámetros:
+        usuario_sesion: dict inyectado por @requiere_admin
+        accion:    str — 'CREAR', 'EDITAR', 'ELIMINAR', 'AJUSTAR', 'EJECUTAR', 'MODIFICAR'
+        modulo:    str — 'USUARIOS', 'INVENTARIO', 'PRODUCTOS', 'ADMINISTRACION', 'CONFIGURACION'
+        detalle:   dict — contexto de la operación (sin passwords ni hashes)
+        resultado: str — 'OK' (por defecto) o 'ERROR'
+    """
+    try:
+        detalle_json = json.dumps(detalle or {}, ensure_ascii=False)
+
+        # Leer IP solo si hay contexto Flask activo
+        ip_address = None
+        try:
+            from flask import request as flask_request
+            ip_address = flask_request.remote_addr
+        except Exception:
+            pass
+
+        with get_db_connection() as conn:
+            conn.execute(
+                "INSERT INTO auditoria "
+                "(id_usuario, nombre_usuario, accion, modulo, detalle_json, ip_address, resultado) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?);",
+                (
+                    usuario_sesion.get('id_usuario'),
+                    usuario_sesion.get('nombre_usuario'),
+                    accion,
+                    modulo,
+                    detalle_json,
+                    ip_address,
+                    resultado,
+                )
+            )
+    except Exception as e:
+        print(f"[AUDITORIA ERROR] No se pudo registrar {accion}/{modulo}: {e}")
 
 
 def limpiar_sesiones_expiradas():
