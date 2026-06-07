@@ -262,6 +262,45 @@ def obtener_cortes_historicos():
         return jsonify([]), 200
 
 
+@administracion_bp.route('/api/administracion/cortes-historicos/fecha/<fecha>', methods=['GET'])
+def obtener_corte_por_fecha(fecha):
+    """
+    GET /api/administracion/cortes-historicos/fecha/YYYY-MM-DD
+    Busca un corte especifico por fecha.
+    Retorna: {"existe": bool, "corte": {...} o null, "mensaje": str}
+    """
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT id, fecha, efectivo, tarjeta, total_ventas, "
+                "total_gastos, balance_neto, tickets, ejecutado_at "
+                "FROM cortes_historicos WHERE fecha = ? LIMIT 1;",
+                (fecha,),
+            )
+            resultado = cursor.fetchone()
+
+            if resultado:
+                corte = dict(resultado)
+                return jsonify({
+                    "existe": True,
+                    "corte": corte,
+                }), 200
+            else:
+                return jsonify({
+                    "existe": False,
+                    "corte": None,
+                    "mensaje": "No hay corte registrado para esta fecha",
+                }), 200
+    except Exception as e:
+        print(f"[ADMIN ERROR obtener_corte_por_fecha]: {e}")
+        return jsonify({
+            "existe": False,
+            "corte": None,
+            "error": str(e),
+        }), 500
+
+
 @administracion_bp.route('/api/administracion/gastos', methods=['GET', 'POST'])
 def gestionar_gastos():
     if request.method == 'POST':
