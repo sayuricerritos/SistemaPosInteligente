@@ -31,6 +31,7 @@ export default function Pedidos() {
   const [pedidos, setPedidos]   = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError]       = useState(null);
+  const [despachando, setDespachando] = useState({});
   const { notificar, DialogoUI } = useDialogo()
 
   const obtenerPedidos = () => {
@@ -109,6 +110,8 @@ export default function Pedidos() {
                   </div>
                   <button
                     onClick={() => {
+                      if (despachando[pedido.id_pedido]) return
+                      setDespachando(prev => ({ ...prev, [pedido.id_pedido]: true }))
                       fetch('http://127.0.0.1:5000/api/pedidos/despachar', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -116,11 +119,13 @@ export default function Pedidos() {
                       })
                       .then(res => { if (!res.ok) throw new Error('Error al despachar'); return res.json(); })
                       .then(() => { notificar(`Orden de ${origen} despachada con exito.`, 'exito'); obtenerPedidos(); })
-                      .catch(err => notificar(`Error: ${err.message}`, 'error'));
+                      .catch(err => notificar(`Error: ${err.message}`, 'error'))
+                      .finally(() => setDespachando(prev => ({ ...prev, [pedido.id_pedido]: false })))
                     }}
-                    className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl font-bold transition-all flex items-center gap-2"
+                    disabled={despachando[pedido.id_pedido]}
+                    className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl font-bold transition-all flex items-center gap-2 disabled:bg-amber-300 disabled:cursor-not-allowed"
                   >
-                    Despachar <IconoFlecha />
+                    {despachando[pedido.id_pedido] ? 'Despachando...' : 'Despachar'} <IconoFlecha />
                   </button>
                 </div>
               </div>
