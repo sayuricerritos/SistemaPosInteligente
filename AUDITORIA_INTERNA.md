@@ -300,7 +300,7 @@ No se implementó sincronización automática porque:
 | Botón Atrás en vista de comanda | ✅ Completado | - |
 | Configuración de número de mesas | ✅ Completado | - |
 | Manejo global 401/403 - Implementado | ⚠️ Pendiente validación visual | 🟡 Media |
-| Auditoría de operaciones | ❌ Futuro | 🟡 Media |
+| Auditoría de operaciones | ⚠️ Implementado, validación parcial | 🟡 Media |
 | Persistencia de sesión (localStorage) | ❌ Futuro | 🟡 Media |
 
 ---
@@ -322,6 +322,66 @@ No se implementó sincronización automática porque:
 
 ### Paso 4: Validación
 8. ✅ Pruebas manuales: Admin/Cajero exitosas
+
+---
+
+## ⚠️ IMPLEMENTADO, VALIDACIÓN PARCIAL: Auditoría de Operaciones Sensibles
+
+### Infraestructura:
+
+**Base de Datos (`database.py`):**
+- ✅ Tabla `auditoria` con 9 columnas: `id`, `fecha` (DEFAULT datetime('now')), `id_usuario`, `nombre_usuario`, `accion`, `modulo`, `detalle_json`, `ip_address`, `resultado` (DEFAULT 'OK')
+- ✅ 3 índices idempotentes: `idx_auditoria_fecha`, `idx_auditoria_id_usuario`, `idx_auditoria_modulo`
+- ✅ Commit: `database: crear tabla auditoria` (8a9e5d3)
+
+**Helper (`database.py`):**
+- ✅ `registrar_auditoria(usuario_sesion, accion, modulo, detalle=None, resultado='OK')`
+- ✅ `json.dumps(detalle or {}, ensure_ascii=False)` — nunca falla con `None`
+- ✅ IP leída desde `flask_request.remote_addr` con `try/except` aislado
+- ✅ `try/except` externo — falla silenciosa con `print("[AUDITORIA ERROR]...")`, nunca interrumpe flujo principal
+- ✅ No guarda `password_hash` ni `contrasena` — responsabilidad del llamador
+- ✅ Commit: `backend: agregar helper registrar auditoria` (d0822c0)
+
+### Módulos con auditoría conectada:
+
+**Usuarios (`usuarios.py`)** — Commit `5cc7ce1`:
+- ✅ `CREAR` — `guardar_usuario()` sin `id_usuario`
+- ✅ `EDITAR` — `guardar_usuario()` con `id_usuario`
+- ✅ `ELIMINAR` — `eliminar_usuario()` captura datos antes del DELETE
+
+**Inventario (`inventario.py`)** — Commit `32781d8`:
+- ✅ `CREAR` — `crear_insumo()` con nombre, unidad, cantidad_inicial, stock_minimo
+- ✅ `AJUSTAR` — `ajustar_inventario()` con tipo (ENTRADA/MERMA), cantidad_anterior, cantidad_nueva
+
+**Productos (`productos.py`)** — Commit `8197310`:
+- ✅ `CREAR` — `crear_producto()`
+- ✅ `EDITAR` — `actualizar_producto()`
+- ✅ `ELIMINAR` — `eliminar_producto()` captura datos antes del DELETE
+- ✅ `MODIFICAR_RECETA` — `guardar_receta_producto()` con total_insumos e ids
+- ✅ `MODIFICAR_EXTRAS` — `guardar_extras_producto()` con total_extras y nombres
+
+**Administración (`administracion.py`)** — Commit `40d0ba9`:
+- ✅ `EJECUTAR_CORTE` — `ejecutar_corte_caja()` con fecha, totales financieros
+- ✅ `REGISTRAR_GASTO` — `gestionar_gastos()` POST con concepto, monto, fecha
+
+**Configuración (`configuracion.py`)** — Commit `40d0ba9`:
+- ✅ `MODIFICAR` — `actualizar_configuracion()` con empresa, dirección, IVA
+
+### Validación manual:
+- ✅ **Prueba mínima exitosa**: Inventario → Merma → fila en `auditoria` con:
+  - `nombre_usuario: Admin`
+  - `accion: AJUSTAR`
+  - `modulo: INVENTARIO`
+  - `detalle_json` con `id_insumo`, `nombre`, `tipo: MERMA`, `cantidad_anterior`, `cantidad_nueva`
+  - `resultado: OK`
+  - `ip_address: 127.0.0.1`
+
+### Pendiente validación completa:
+- ⏳ CREAR / EDITAR / ELIMINAR usuarios
+- ⏳ CREAR insumo / AJUSTAR ENTRADA
+- ⏳ CREAR / EDITAR / ELIMINAR / MODIFICAR_RECETA / MODIFICAR_EXTRAS productos
+- ⏳ REGISTRAR_GASTO / EJECUTAR_CORTE administración
+- ⏳ MODIFICAR configuración
 
 ---
 
