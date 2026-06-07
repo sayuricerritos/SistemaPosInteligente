@@ -204,6 +204,30 @@ export default function Mesas() {
     .finally(() => setEnviandoComanda(false));
   };
 
+  const handleVolverAGrid = async () => {
+    // Si hay modal de personalización abierto, cerrarlo primero
+    if (mostrarModalPersonalizar) {
+      setMostrarModalPersonalizar(false)
+      setProductoAEditar(null)
+      setIndiceAEditar(null)
+    }
+
+    // Si hay productos en el carrito sin mandar a cocina, pedir confirmación
+    if (comandaSesion.length > 0) {
+      const ok = await confirmar(
+        'Hay productos en el carrito que no se han mandado a cocina. ¿Deseas descartarlos y volver al piso?'
+      )
+      if (!ok) return
+    }
+
+    // Limpiar todo y volver al grid
+    setMesaSeleccionada(null)
+    setComandaSesion([])
+    setProductoAEditar(null)
+    setIndiceAEditar(null)
+    setMostrarModalPago(false)
+  }
+
   const liquidarCuentaMesa = () => {
     if (cerrandoCuenta) return;
     setCerrandoCuenta(true);
@@ -292,7 +316,7 @@ export default function Mesas() {
                   </div>
                 ) : (
                   mesasActivas.map(ma => (
-                    <div key={ma.numero_mesa} onClick={() => setMesaSeleccionada(ma)} className="p-3 bg-amber-50/40 border border-dashed border-amber-300 rounded-xl cursor-pointer hover:bg-amber-50 transition-colors flex justify-between items-center">
+                    <div key={ma.numero_mesa} onClick={() => { setMesaSeleccionada(ma); setComandaSesion([]); setProductoAEditar(null); setIndiceAEditar(null); }} className="p-3 bg-amber-50/40 border border-dashed border-amber-300 rounded-xl cursor-pointer hover:bg-amber-50 transition-colors flex justify-between items-center">
                       <div>
                         <p className="font-black text-gray-800 text-2xs">MESA NUM. {ma.numero_mesa}</p>
                         <p className="text-gray-400 font-bold mt-0.5">Mesero: {ma.mesero}</p>
@@ -333,7 +357,7 @@ export default function Mesas() {
                   <h3 className="font-black text-gray-800 text-xs">MESA {mesaSeleccionada.numero_mesa}</h3>
                   <p className="text-3xs text-gray-400 font-bold">Atendiendo: {mesaSeleccionada.mesero}</p>
                 </div>
-                <button onClick={() => setMesaSeleccionada(null)} className="text-3xs font-black text-gray-400 bg-gray-100 px-2 py-1 rounded">Regresar</button>
+                <button onClick={handleVolverAGrid} className="text-3xs font-black text-gray-400 bg-gray-100 px-2 py-1 rounded">Regresar</button>
               </div>
               <div className="flex-1 overflow-y-auto space-y-2 text-xs pr-1">
                 {mesaSeleccionada.productos?.map((item, i) => (
