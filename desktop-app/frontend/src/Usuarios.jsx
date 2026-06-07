@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { noNeg } from './helpers/validacion'
 
 const IconoCandado = ({ className = 'w-3.5 h-3.5' }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -30,6 +31,7 @@ const IconoAcceso = ({ className = 'w-3 h-3' }) => (
     <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
   </svg>
 )
+
 
 const FORM_INICIAL = {
   id_usuario: null,
@@ -295,13 +297,13 @@ export default function Usuarios() {
               <div>
                 <label className="block mb-1 text-3xs uppercase text-gray-400">Horas Trabajadas</label>
                 <input type="number" required value={formStaff.horas_trabajadas}
-                  onChange={e => setFormStaff({...formStaff, horas_trabajadas: e.target.value})}
+                  onChange={e => setFormStaff({...formStaff, horas_trabajadas: noNeg(e.target.value, formStaff.horas_trabajadas)})}
                   placeholder="40" className="w-full p-2.5 border rounded-xl font-mono text-gray-800 bg-gray-50 focus:outline-none" />
               </div>
               <div>
                 <label className="block mb-1 text-3xs uppercase text-gray-400">Sueldo por Hora ($)</label>
                 <input type="number" required value={formStaff.pago_hora}
-                  onChange={e => setFormStaff({...formStaff, pago_hora: e.target.value})}
+                  onChange={e => setFormStaff({...formStaff, pago_hora: noNeg(e.target.value, formStaff.pago_hora)})}
                   placeholder="45.00" className="w-full p-2.5 border rounded-xl font-mono text-gray-800 bg-gray-50 focus:outline-none" />
               </div>
             </div>

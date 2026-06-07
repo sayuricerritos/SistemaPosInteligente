@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-
+import { noNeg } from './helpers/validacion'
 const IconoPersonas = ({ className = "w-3.5 h-3.5" }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
@@ -376,7 +376,9 @@ export default function Mesas() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block mb-1 text-3xs uppercase tracking-wider text-gray-400">Comensales:</label>
-                <input type="number" required value={comensalesInput} onChange={e => setComensalesInput(e.target.value)} min="1" className="w-full p-2.5 border rounded-xl font-medium text-gray-800 bg-gray-50 focus:outline-none" />
+                <input type="number" required value={comensalesInput} 
+                onChange={e => setComensalesInput(e.target.value)} min="1" max="5"
+                 className="w-full p-2.5 border rounded-xl font-medium text-gray-800 bg-gray-50 focus:outline-none" />
               </div>
               <div>
                 <label className="block mb-1 text-3xs uppercase tracking-wider text-gray-400">Mesero Asignado:</label>
@@ -475,7 +477,7 @@ export default function Mesas() {
                 {metodoPago === 'Efectivo' && (
                   <div className="space-y-1">
                     <span>Efectivo Recibido en Caja ($)</span>
-                    <input type="number" value={efectivoRecibido} onChange={e => setEfectivoRecibido(e.target.value)} placeholder="$ 0.00" className="w-full p-2.5 border rounded-xl font-mono text-gray-800 text-sm focus:outline-none" />
+                    <input type="number" value={efectivoRecibido} onChange={e => setEfectivoRecibido(noNeg(e.target.value, efectivoRecibido))} placeholder="$ 0.00" className="w-full p-2.5 border rounded-xl font-mono text-gray-800 text-sm focus:outline-none" />
                     {efectivoRecibido && parseFloat(efectivoRecibido) >= (mesaSeleccionada.subtotal + parseFloat(propina || 0)) && (
                       <div className="bg-emerald-50 text-emerald-700 p-2 rounded-lg text-3xs font-bold border border-emerald-200 mt-1">
                         Cambio a entregar: ${(parseFloat(efectivoRecibido) - (mesaSeleccionada.subtotal + parseFloat(propina || 0))).toFixed(2)} MXN
@@ -485,7 +487,7 @@ export default function Mesas() {
                 )}
                 <div className="space-y-1">
                   <span>Anadir Propina ($)</span>
-                  <input type="number" value={propina} onChange={e => setPropina(e.target.value)} placeholder="Opcional" className="w-full p-2.5 border rounded-xl text-gray-800 text-xs focus:outline-none" />
+                  <input type="number" value={propina} onChange={e => setPropina(noNeg(e.target.value, propina))} placeholder="Opcional" className="w-full p-2.5 border rounded-xl text-gray-800 text-xs focus:outline-none" />
                 </div>
               </div>
               {/* RESUMEN - fondo claro */}
@@ -511,7 +513,7 @@ export default function Mesas() {
                 className="w-full py-3 bg-[#8B5A2B] hover:bg-[#7A4F25] text-white font-black rounded-xl text-xs uppercase tracking-wider disabled:bg-gray-200 disabled:text-gray-400 transition-colors flex items-center justify-center gap-2"
               >
                 <IconoImpresora />
-                Honorar Cobro e Imprimir Ticket
+                Pagar y Cerrar Cuenta
               </button>
             </div>
           </div>
