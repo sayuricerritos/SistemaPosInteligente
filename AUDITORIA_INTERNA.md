@@ -184,51 +184,68 @@ Todos los formularios y acciones críticas están protegidos contra ejecuciones 
 
 ---
 
-## ⏳ PENDIENTE: Inconsistencias UX en Módulo Mesas
+## ✅ COMPLETADO: Inconsistencia de Comensales en Mesas
 
-### 1. Inconsistencia en Comensales
+### Problema original:
+El badge en las tarjetas de mesa mostraba "Capacidad: 4 asientos" (hardcodeado en backend), pero el input del modal de apertura aceptaba hasta 5 comensales (`max="5"`). La columna `capacidad` existía en SQLite con `DEFAULT 4` pero nunca se leía.
 
-**Síntoma:** La app muestra "4 lugares disponibles" pero acepta 5 comensales en el input.
+### Solución:
+**Backend (`mesas.py`):**
+- ✅ `obtener_mesas()`: SELECT ahora incluye `capacidad` desde SQLite
+- ✅ Eliminado hardcode `"capacidad": 4`
+- ✅ Fallback `4` si la columna viene NULL (compatibilidad con BDs antiguas)
+- ✅ Commit: `backend: leer capacidad real de mesas` (67900fd)
 
-**Acciones requeridas:**
-- [ ] Verificar si el límite correcto de la operación es 4 o 5
-- [ ] Unificar el texto visual (chip/badge en tarjeta de mesa)
-- [ ] Unificar la validación del input de comensales en `Mesas.jsx`
-- [ ] Unificar lógica backend si hay validación en `abrir_mesa()`
-- [ ] Definir si `capacidad` de la tabla `mesas` debe ser la fuente de verdad
+**Frontend (`Mesas.jsx`):**
+- ✅ Nuevo estado `capacidadMesaSeleccionada` (default `4`)
+- ✅ `handleMesaClick()`: guarda `m.capacidad || 4` al abrir modal
+- ✅ Input comensales: `max={capacidadMesaSeleccionada}` en lugar de `max="5"`
+- ✅ Label: `"Comensales (máx. N):"` — texto visual y límite del input coinciden
+- ✅ Commit: `frontend: usar capacidad como limite de comensales` (bfc7c19)
 
-**Archivos a revisar:** `Mesas.jsx` (modal apertura), `mesas.py` (abrir_mesa), tabla `mesas` (columna capacidad)
-
----
-
-### 2. Configuración de Número de Mesas
-
-**Síntoma:** El valor de "Total de Mesas en Piso" en Configuración no afecta el panel Mesas.
-
-**Acciones requeridas:**
-- [ ] Verificar si `configuracion_sistema["limite_mesas"]` es leído por `Mesas.jsx`
-- [ ] Verificar si el panel Mesas usa el seed de SQLite (8 mesas fijas) o la configuración
-- [ ] Verificar si `POST /api/configuracion` sincroniza el conteo real de filas en tabla `mesas`
-- [ ] Definir fuente de verdad única: ¿`configuracion_sistema`, tabla `mesas`, o ambos deben estar sincronizados?
-- [ ] Si se decide sincronizar: agregar lógica en `actualizar_configuracion()` que inserte/elimine mesas en SQLite
-
-**Archivos a revisar:** `Configuracion.jsx`, `configuracion.py`, `state.py`, `Mesas.jsx`, `database.py` (seed 8 mesas)
+### Resultado:
+- Badge (tarjeta): "Capacidad: 4 asientos" ← leído de SQLite
+- Label (modal): "Comensales (máx. 4):" ← sincronizado
+- Input máximo: 4 ← sincronizado
+- Si en el futuro se cambia `capacidad` en SQLite, las tres capas se actualizan solas
 
 ---
 
-### 3. Navegación en Mesas (Botón Atrás)
+## ✅ COMPLETADO: Botón Atrás en Vista de Comanda
 
-**Síntoma:** Al entrar a la vista de comanda de una mesa no hay forma de volver al grid sin cerrar la sesión o refrescar.
+### Problema original:
+El botón "Regresar" llamaba directamente `setMesaSeleccionada(null)` sin verificar si había productos en el carrito local sin mandar a cocina. Salir accidentalmente descartaba ítems sin aviso. El panel "Comandas Vivas" tampoco limpiaba el carrito al cambiar de mesa, lo que podía mezclar ítems de diferentes sesiones.
 
-**Acciones requeridas:**
-- [ ] Agregar botón "Atrás" en la vista de selección de productos/comanda en `Mesas.jsx`
-- [ ] Definir comportamiento si hay productos en el carrito local sin comandar:
-  - Opción A: mostrar confirmación antes de salir (`await confirmar()`)
-  - Opción B: limpiar carrito silenciosamente
-  - Opción C: mantener carrito al volver (estado local)
-- [ ] Confirmar que volver al grid no cierra ni modifica la mesa activa en backend
+### Solución (`Mesas.jsx`):
+- ✅ Función `handleVolverAGrid()` async agregada:
+  - Si `mostrarModalPersonalizar` está abierto → lo cierra primero
+  - Si `comandaSesion.length > 0` → `await confirmar(...)` antes de salir
+  - Si el usuario cancela → `return` (se queda en la vista)
+  - Si confirma o carrito vacío → limpia `mesaSeleccionada`, `comandaSesion`, `productoAEditar`, `indiceAEditar`, `mostrarModalPago`
+- ✅ Botón "Regresar": `onClick` cambiado a `handleVolverAGrid`
+- ✅ Panel "Comandas Vivas": al hacer click en una mesa limpia `comandaSesion`, `productoAEditar`, `indiceAEditar` — evita mezcla de carritos
+- ✅ Las comandas ya enviadas a cocina no se pierden — viven en backend
+- ✅ Sin cambios en tickets, inventario, snapshots ni backend
+- ✅ Commit: `frontend: confirmar salida de vista de comanda` (2e98e19)
 
-**Archivos a revisar:** `Mesas.jsx` (estado `mesaSeleccionada`, botón de retorno)
+---
+
+## ⏳ PENDIENTE: Configuración de Número de Mesas
+
+### Síntoma:
+El campo "Total de Mesas en Piso" en la pantalla Configuración no coincide necesariamente con el número de mesas visible en el panel Mesas. El panel Mesas carga las filas reales de la tabla `mesas` en SQLite (8 por seed), mientras que `configuracion_sistema["limite_mesas"]` es un valor en memoria que no sincroniza con esa tabla.
+
+### Auditoría técnica pendiente:
+- [ ] Verificar si `configuracion_sistema["limite_mesas"]` es leído por `Mesas.jsx` en algún punto
+- [ ] Verificar si el panel Mesas usa el conteo de filas SQLite o el valor de configuración
+- [ ] Verificar si `POST /api/configuracion` modifica de alguna forma la tabla `mesas`
+- [ ] Definir fuente de verdad: ¿`configuracion_sistema`, tabla `mesas`, o sincronizar ambos?
+- [ ] Si se decide sincronizar: revisar implicaciones (mesas con cuenta abierta, snapshots activos)
+
+**Archivos a revisar antes de implementar:**
+`Configuracion.jsx`, `configuracion.py`, `state.py`, `Mesas.jsx`, `database.py` (seed 8 mesas)
+
+**Riesgo si se implementa sin auditar:** Eliminar mesas con sesiones activas o snapshots podría corromper el estado del piso.
 
 ---
 
@@ -245,9 +262,9 @@ Todos los formularios y acciones críticas están protegidos contra ejecuciones 
 | Menu/Inventario/Config - Frontend integración | ✅ Completado | - |
 | Pruebas manuales Admin/Cajero | ✅ Completado | - |
 | Persistencia de mesas activas | ✅ Completado | - |
-| Inconsistencia comensales (4 vs 5) | ⏳ Pendiente UX | 🟡 Media |
-| Configuración de número de mesas | ⏳ Pendiente UX | 🟡 Media |
-| Botón Atrás en vista de comanda | ⏳ Pendiente UX | 🟡 Media |
+| Inconsistencia comensales (4 vs 5) | ✅ Completado | - |
+| Botón Atrás en vista de comanda | ✅ Completado | - |
+| Configuración de número de mesas | ⏳ Pendiente auditoría | 🟡 Media |
 | Auditoría de operaciones | ❌ Futuro | 🟡 Media |
 | Persistencia de sesión (localStorage) | ❌ Futuro | 🟡 Media |
 | Manejo global 401/403 | ❌ Futuro | 🟡 Media |
