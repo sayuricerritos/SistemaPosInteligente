@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useDialogo } from './components/Dialogo'
 import { noNeg } from './helpers/validacion'
+import { apiFetch } from './helpers/apiFetch'
 const IconoAlerta = ({ className = 'w-3 h-3' }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
@@ -49,7 +50,7 @@ export default function Inventario({ usuario }) {
 
 const cargarInsumos = () => {
   setLoading(true)
-  fetch('http://127.0.0.1:5000/api/inventario')
+  apiFetch('http://127.0.0.1:5000/api/inventario', {}, usuario)
     .then(res => {
       if (!res.ok) throw new Error(`Error del servidor: ${res.status}`)
       return res.json()
@@ -79,15 +80,14 @@ const handleProcesarAjuste = (e) => {
   if (ajustando) return
   if (!cantidadInput || parseFloat(cantidadInput) <= 0) return
   setAjustando(true)
-  fetch('http://127.0.0.1:5000/api/inventario/ajustar', {
+  apiFetch('http://127.0.0.1:5000/api/inventario/ajustar', {
     method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
     body:    JSON.stringify({
       id_insumo: insumoSel.id_insumo,
       cantidad:  parseFloat(cantidadInput),
       tipo:      tipoAjuste,
     }),
-  })
+  }, usuario)
   .then(res => {
     if (!res.ok) throw new Error(`Error del servidor: ${res.status}`)
     return res.json()
@@ -104,16 +104,15 @@ const handleProcesarAjuste = (e) => {
 const handleCrearInsumo = (e) => {
   e.preventDefault()
   setGuardandoNuevo(true)
-  fetch('http://127.0.0.1:5000/api/inventario/nuevo', {
+  apiFetch('http://127.0.0.1:5000/api/inventario/nuevo', {
     method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
     body:    JSON.stringify({
       nombre_insumo:   formNuevo.nombre_insumo.trim(),
       cantidad_actual: parseFloat(formNuevo.cantidad_actual) || 0,
       unidad_medida:   formNuevo.unidad_medida,
       stock_minimo:    parseFloat(formNuevo.stock_minimo) || 5,
     }),
-  })
+  }, usuario)
   .then(res => {
     if (!res.ok) throw new Error(`Error del servidor: ${res.status}`)
     return res.json()
