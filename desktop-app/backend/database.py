@@ -209,6 +209,14 @@ def init_database():
             );
         """)
 
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS snapshots_mesa (
+                numero_mesa   TEXT PRIMARY KEY,
+                snapshot_json TEXT NOT NULL,
+                updated_at    TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+
         # ---- Indices para optimización ----------------------------
         cursor.execute(
             "CREATE INDEX IF NOT EXISTS idx_sesiones_token "
