@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
+
 export default function App() {
   const [productos, setProductos] = useState([]);
   const [categoriaActiva, setCategoriaActiva] = useState('Bebidas Calientes');
@@ -10,10 +12,10 @@ export default function App() {
   const [horaRecogida, setHoraRecogida] = useState('');
   const [pedidoEnviado, setPedidoEnviado] = useState(false);
 
-  const categories = ['Bebidas Calientes', 'Bebidas Frías', 'Panadería', 'Alimentos'];
+  const categories = ['Bebidas Calientes', 'Bebidas Frias', 'Panaderia', 'Alimentos'];
 
   useEffect(() => {
-    fetch('http://127.0.0.1:5000/api/productos')
+    fetch(`${API_URL}/api/productos`)
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) setProductos(data);
@@ -73,7 +75,7 @@ export default function App() {
     };
 
     // DISPARO REAL: Mandar el pedido al servidor Flask
-    fetch('http://127.0.0.1:5000/api/pedidos/web', {
+    fetch(`${API_URL}/api/pedidos/web`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -194,7 +196,7 @@ export default function App() {
                 <p className="text-3xs text-emerald-700 leading-relaxed font-semibold">
                   Tu pedido ya se está preparando de forma artesanal. Preséntate en mostrador a la hora acordada. ¡Te esperamos!
                 </p>
-                <button onClick={() => setPedidoEnviado(false)} className="text-3xs font-black uppercase解决方案 underline mt-2 block mx-auto text-emerald-900">Hacer otra orden</button>
+                <button onClick={() => setPedidoEnviado(false)} className="text-3xs font-black uppercase underline mt-2 block mx-auto text-emerald-900">Hacer otra orden</button>
               </div>
             ) : (
               <form onSubmit={gestionarEnvioPedido} className="space-y-4">
