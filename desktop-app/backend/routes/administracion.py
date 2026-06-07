@@ -188,6 +188,23 @@ def ejecutar_corte_caja():
         with get_db_connection() as conn:
             cursor = conn.cursor()
 
+            # Guard: verificar si ya existe un corte para esta fecha
+            cursor.execute(
+                "SELECT id, fecha, efectivo, tarjeta, total_ventas, total_gastos, "
+                "balance_neto, tickets, ejecutado_at "
+                "FROM cortes_historicos WHERE fecha = ? LIMIT 1;",
+                (fecha_corte,),
+            )
+            corte_existente = cursor.fetchone()
+            if corte_existente:
+                existente = dict(corte_existente)
+                print(f"[ADMIN] Corte ya existe para {fecha_corte}, rechazando duplicado.")
+                return jsonify({
+                    "error":           "Ya existe un corte de caja para esta fecha",
+                    "fecha":           fecha_corte,
+                    "corte_existente": existente,
+                }), 409
+
             efectivo = _sum_por_metodo(cursor, fecha_corte, 'Efectivo')
             tarjeta  = _sum_por_metodo(cursor, fecha_corte, 'Tarjeta')
             tickets, total_ventas, _ = _ventas_del_dia(cursor, fecha_corte)
