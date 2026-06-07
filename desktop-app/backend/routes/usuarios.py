@@ -9,11 +9,37 @@ CAMBIOS:
   - GET retorna ambos campos + tiene_contrasena. Nunca retorna password_hash.
 """
 
+import secrets
+from datetime import datetime, timedelta
 from flask import Blueprint, jsonify, request
 from werkzeug.security import generate_password_hash, check_password_hash
 from database import get_db_connection
 
 usuarios_bp = Blueprint('usuarios', __name__)
+
+
+def crear_sesion(id_usuario, permisos, puesto, nombre_usuario):
+    """
+    Crea una nueva sesión en la tabla sesiones.
+    Devuelve el token generado.
+    """
+    token = secrets.token_urlsafe(32)
+    expires_at = (datetime.now() + timedelta(hours=8)).isoformat()
+    ip_address = request.remote_addr
+    user_agent = request.headers.get('User-Agent', '')
+
+    try:
+        with get_db_connection() as conn:
+            conn.execute(
+                "INSERT INTO sesiones "
+                "(token, id_usuario, permisos, puesto, nombre_usuario, expires_at, ip_address, user_agent) "
+                "VALUES (?,?,?,?,?,?,?,?);",
+                (token, id_usuario, permisos, puesto, nombre_usuario, expires_at, ip_address, user_agent),
+            )
+        return token
+    except Exception as e:
+        print(f"[USUARIOS ERROR crear_sesion]: {e}")
+        return None
 
 
 @usuarios_bp.route('/api/usuarios', methods=['GET'])
@@ -176,9 +202,21 @@ def autenticar_usuario():
         else:
             return jsonify({"error": "Este usuario no tiene contrasena configurada"}), 401
 
-        print(f"[AUTH] {user_data['nombre_usuario']} ({user_data['nombre']}) -> {user_data['puesto']}")
+        # Crear sesión
+        token = crear_sesion(
+            id_usuario=user_data['id_usuario'],
+            permisos=user_data['permisos'],
+            puesto=user_data['puesto'],
+            nombre_usuario=user_data['nombre_usuario']
+        )
+
+        if not token:
+            return jsonify({"error": "Error creando sesión"}), 500
+
+        print(f"[AUTH] {user_data['nombre_usuario']} ({user_data['nombre']}) -> {user_data['puesto']} (token={token[:8]}...)")
         return jsonify({
             "status":         "Authenticated",
+            "token":          token,
             "id_usuario":     user_data['id_usuario'],
             "nombre":         user_data['nombre'],
             "nombre_usuario": user_data['nombre_usuario'],
