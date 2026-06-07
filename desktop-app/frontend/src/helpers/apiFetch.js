@@ -4,11 +4,17 @@
  * Uso:
  *   apiFetch('/api/usuarios', {}, usuario)
  *   apiFetch('/api/usuarios/guardar', { method: 'POST', body: JSON.stringify({...}) }, usuario)
+ *   apiFetch('/api/usuarios', {}, usuario, (tipo, res) => { ... })
  *
- * Devuelve un fetch normal, sin cambios en comportamiento actual.
+ * onSessionError(tipo, res):
+ *   tipo === 'unauthorized' → status 401 (sesión expirada o token inválido)
+ *   tipo === 'forbidden'    → status 403 (sin permisos suficientes)
+ *
+ * La respuesta original siempre se propaga al .then() del componente.
+ * No se lanza throw. No se hace res.json() aquí.
  */
 
-export function apiFetch(url, options = {}, usuario = null) {
+export function apiFetch(url, options = {}, usuario = null, onSessionError = null) {
   // Inicializar headers
   const headers = {
     'Content-Type': 'application/json',
@@ -20,9 +26,15 @@ export function apiFetch(url, options = {}, usuario = null) {
     headers['X-Session-Token'] = usuario.token
   }
 
-  // Retornar fetch con headers actualizados
+  // Ejecutar fetch e interceptar 401/403 sin romper la cadena de promesas
   return fetch(url, {
     ...options,
     headers,
+  }).then(res => {
+    if (onSessionError) {
+      if (res.status === 401) onSessionError('unauthorized', res)
+      if (res.status === 403) onSessionError('forbidden', res)
+    }
+    return res
   })
 }
