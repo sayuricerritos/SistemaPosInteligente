@@ -135,9 +135,10 @@ def obtener_pedidos_activos_monitor():
         with get_db_connection() as conn:
             cursor = conn.cursor()
             # 'id AS id_pedido': PK real es 'id'
+            # Incluye 'Listo': pedidos web despachados pendientes de cobro
             cursor.execute(
-                "SELECT id AS id_pedido, numero_mesa, subtotal, total, productos "
-                "FROM pedidos WHERE estado = 'En Cocina';"
+                "SELECT id AS id_pedido, numero_mesa, subtotal, total, productos, estado, metodo_pago "
+                "FROM pedidos WHERE estado IN ('En Cocina', 'Listo') AND tipo = 'comanda';"
             )
             rows = cursor.fetchall()
 
@@ -214,13 +215,23 @@ def despachar_pedido_cocina():
                     if extras_lista:
                         _procesar_extras(cursor, extras_lista, extras_config)
 
-            # Marcar como Completado
+            # Determinar estado final según canal del pedido
+            # Pedidos web (metodo_pago='Web') → 'Listo' (pendiente de cobro en mostrador)
+            # Todos los demás → 'Completado' (comportamiento sin cambios)
             if id_pedido:
                 cursor.execute(
-                    "UPDATE pedidos SET estado = 'Completado' WHERE id = ?;",
+                    "SELECT metodo_pago FROM pedidos WHERE id = ?;",
                     (id_pedido,),
                 )
+                fila_canal = cursor.fetchone()
+                es_web = fila_canal and fila_canal['metodo_pago'] == 'Web'
+                estado_final = 'Listo' if es_web else 'Completado'
+                cursor.execute(
+                    "UPDATE pedidos SET estado = ? WHERE id = ?;",
+                    (estado_final, id_pedido),
+                )
             elif numero_mesa:
+                # Por numero_mesa no aplica canal web (los pedidos web usan id_pedido)
                 cursor.execute(
                     "UPDATE pedidos SET estado = 'Completado' "
                     "WHERE numero_mesa = ? AND estado = 'En Cocina';",
@@ -230,6 +241,96 @@ def despachar_pedido_cocina():
         return jsonify({"mensaje": "Pedido despachado y almacen actualizado"}), 200
     except Exception as e:
         print(f"[PEDIDOS ERROR despachar]: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@pedidos_bp.route('/api/pedidos/web/cobrar', methods=['POST'])
+def cobrar_pedido_web():
+    """
+    Cobra un pedido web que ya fue despachado (estado='Listo').
+    Genera el ticket financiero y cierra la comanda.
+
+    Flujo completo del pedido web:
+      1. Cliente pide desde web     → comanda 'En Cocina'
+      2. Cocina despacha            → inventario descontado, estado='Listo'
+      3. Cajero cobra aquí          → ticket 'Completado' + comanda 'Completado'
+
+    Garantías:
+      - No descuenta inventario (ya ocurrió en despachar).
+      - No crea ticket si el pedido no está en estado 'Listo' (guard anti-doble-cobro).
+    """
+    data        = request.json or {}
+    id_pedido   = data.get('id_pedido')
+    metodo_pago = data.get('metodo_pago', 'Efectivo')
+
+    if not id_pedido:
+        return jsonify({"error": "id_pedido requerido"}), 400
+    if metodo_pago not in ('Efectivo', 'Tarjeta'):
+        return jsonify({"error": "metodo_pago debe ser Efectivo o Tarjeta"}), 400
+
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+
+            # Buscar la comanda web
+            cursor.execute(
+                "SELECT id, numero_mesa, total, productos, estado, metodo_pago "
+                "FROM pedidos WHERE id = ? AND tipo = 'comanda';",
+                (id_pedido,),
+            )
+            pedido = cursor.fetchone()
+
+            if not pedido:
+                return jsonify({"error": "Pedido no encontrado"}), 404
+
+            pedido_dict = dict(pedido)
+
+            # Validar que sea canal web
+            if pedido_dict['metodo_pago'] != 'Web':
+                return jsonify({"error": "Este endpoint es solo para pedidos web"}), 400
+
+            # Guard anti-doble-cobro: solo se puede cobrar si está en 'Listo'
+            if pedido_dict['estado'] != 'Listo':
+                return jsonify({
+                    "error": f"El pedido no está listo para cobrar (estado actual: {pedido_dict['estado']})"
+                }), 409
+
+            fecha_cobro = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+            # Crear ticket financiero (fuente de verdad del cobro para Administración)
+            cursor.execute(
+                "INSERT INTO pedidos "
+                "(numero_mesa, subtotal, total, productos, estado, fecha, metodo_pago, tipo) "
+                "VALUES (?, ?, ?, ?, 'Completado', ?, ?, 'ticket');",
+                (
+                    pedido_dict['numero_mesa'],
+                    pedido_dict['total'],
+                    pedido_dict['total'],
+                    pedido_dict['productos'],
+                    fecha_cobro,
+                    metodo_pago,
+                ),
+            )
+
+            # Cerrar la comanda original
+            cursor.execute(
+                "UPDATE pedidos SET estado = 'Completado' WHERE id = ?;",
+                (id_pedido,),
+            )
+
+        print(f"[PEDIDOS WEB] Pedido #{id_pedido} cobrado — {metodo_pago} — {pedido_dict['numero_mesa']}")
+        return jsonify({
+            "status":       "success",
+            "mensaje":      "Pedido cobrado y ticket registrado",
+            "id_pedido":    id_pedido,
+            "numero_mesa":  pedido_dict['numero_mesa'],
+            "total":        pedido_dict['total'],
+            "metodo_pago":  metodo_pago,
+            "fecha_cobro":  fecha_cobro,
+        }), 200
+
+    except Exception as e:
+        print(f"[PEDIDOS WEB ERROR cobrar]: {e}")
         return jsonify({"error": str(e)}), 500
 
 
