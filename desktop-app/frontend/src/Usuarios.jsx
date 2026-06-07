@@ -51,7 +51,6 @@ export default function Usuarios({ usuario, onSessionError }) {
   const [usuarios, setUsuarios]         = useState([])
   const [mostrarModal, setMostrarModal] = useState(false)
   const [loading, setLoading]           = useState(true)
-  const [rolUsuarioLogueado, setRolUsuarioLogueado] = useState('Admin')
   const [formStaff, setFormStaff]       = useState(FORM_INICIAL)
   const [errorForm, setErrorForm]       = useState('')
   const [guardandoUsuario, setGuardandoUsuario] = useState(false)
@@ -71,30 +70,18 @@ export default function Usuarios({ usuario, onSessionError }) {
   useEffect(() => { cargarPersonal() }, [])
 
   const abrirModalParaNuevo = () => {
-    if (rolUsuarioLogueado !== 'Admin') {
-      alert('Acceso denegado: se requiere rol Administrador.')
-      return
-    }
     setFormStaff(FORM_INICIAL)
     setErrorForm('')
     setMostrarModal(true)
   }
 
   const abrirModalParaEditar = (u) => {
-    if (rolUsuarioLogueado !== 'Admin') {
-      alert('Acceso denegado: se requiere rol Administrador.')
-      return
-    }
     setFormStaff({ ...u, contrasena: '' })
     setErrorForm('')
     setMostrarModal(true)
   }
 
   const handleEliminar = async (id) => {
-    if (rolUsuarioLogueado !== 'Admin') {
-      notificar('Acceso denegado: se requiere rol Administrador.')
-      return
-    }
     if (!await confirmar('Confirmar la baja definitiva de este colaborador?')) return
     apiFetch(`http://127.0.0.1:5000/api/usuarios/${id}`, { method: 'DELETE' }, usuario, onSessionError)
       .then(res => {
@@ -135,7 +122,7 @@ export default function Usuarios({ usuario, onSessionError }) {
     .finally(() => setGuardandoUsuario(false))
   }
 
-  const esAdmin = rolUsuarioLogueado === 'Admin'
+  const esAdmin = true  // Usuarios solo es accesible para Admin (@requiere_admin en backend)
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -147,17 +134,6 @@ export default function Usuarios({ usuario, onSessionError }) {
           <p className="text-3xs text-gray-400 font-bold uppercase tracking-wider mt-0.5">
             Auditoria interna de horas, salarios y credenciales de acceso.
           </p>
-        </div>
-        <div className="bg-gray-100 p-1 rounded-xl border border-gray-200 flex gap-1 items-center">
-          <span className="text-[10px] font-black text-gray-400 px-2 uppercase">Llave Rol:</span>
-          <button type="button" onClick={() => setRolUsuarioLogueado('Basico')}
-            className={`py-1.5 px-3 rounded-lg text-3xs font-black transition-colors flex items-center gap-1.5 ${rolUsuarioLogueado === 'Basico' ? 'bg-red-100 text-red-800' : 'bg-white text-gray-500'}`}>
-            <IconoCandado />Empleado
-          </button>
-          <button type="button" onClick={() => setRolUsuarioLogueado('Admin')}
-            className={`py-1.5 px-3 rounded-lg text-3xs font-black transition-colors flex items-center gap-1.5 ${rolUsuarioLogueado === 'Admin' ? 'bg-emerald-100 text-emerald-800' : 'bg-white text-gray-500'}`}>
-            <IconoCandadoAbierto />Admin
-          </button>
         </div>
       </div>
 
