@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react'
+import { apiFetch } from './helpers/apiFetch'
+
 export default function Configuracion({ usuario }) {
   const [config, setConfig] = useState({ empresa: '', direccion: '', moneda: '', iva: '', limite_mesas: 5, version: '' })
   const [mensaje, setMensaje] = useState('')
 
   const cargarConfig = () => {
-    fetch('http://127.0.0.1:5000/api/configuracion')
+    apiFetch('http://127.0.0.1:5000/api/configuracion', {}, usuario)
       .then(res => res.json())
       .then(data => setConfig(data))
       .catch(err => console.error("Error al leer configuración:", err))
@@ -16,11 +18,10 @@ export default function Configuracion({ usuario }) {
 
   const handleGuardar = (e) => {
     e.preventDefault()
-    fetch('http://127.0.0.1:5000/api/configuracion', {
+    apiFetch('http://127.0.0.1:5000/api/configuracion', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(config)
-    })
+    }, usuario)
     .then(res => res.json())
     .then(() => {
       setMensaje('¡Parámetros e inventario de mesas guardados localmente!')
