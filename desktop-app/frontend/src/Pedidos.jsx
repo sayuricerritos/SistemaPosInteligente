@@ -32,6 +32,8 @@ export default function Pedidos() {
   const [cargando, setCargando] = useState(true);
   const [error, setError]       = useState(null);
   const [despachando, setDespachando] = useState({});
+  const [cobrando, setCobrando]       = useState({});
+  const [metodoCobro, setMetodoCobro] = useState({});
   const { notificar, DialogoUI } = useDialogo()
 
   const obtenerPedidos = () => {
@@ -82,15 +84,28 @@ export default function Pedidos() {
             const origen         = pedido.numero_mesa || "Mostrador";
             const totalStr       = pedido.total ? `$${parseFloat(pedido.total).toFixed(2)}` : "$0.00";
             const listaProductos = Array.isArray(pedido.productos) ? pedido.productos : [];
+            const esWeb          = pedido.metodo_pago === 'Web';
+            const esListo        = pedido.estado === 'Listo';
+            const metodoPedido   = metodoCobro[pedido.id_pedido] || 'Efectivo';
+
             return (
-              <div key={index} className="bg-white rounded-xl shadow-md border-t-4 border-amber-500 p-5 flex flex-col justify-between">
+              <div
+                key={index}
+                className={`bg-white rounded-xl shadow-md border-t-4 p-5 flex flex-col justify-between ${
+                  esListo ? 'border-emerald-500' : 'border-amber-500'
+                }`}
+              >
                 <div>
                   <div className="flex justify-between items-start mb-3">
                     <h3 className="text-sm font-bold text-gray-700 flex items-center gap-1.5">
                       <IconoMesa className="text-gray-400" />
                       {origen.startsWith('Mesa') || origen.includes('Web') ? origen : `Mesa ${origen}`}
                     </h3>
-                    <span className="bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded font-mono font-bold">EN COLA</span>
+                    {esListo ? (
+                      <span className="bg-emerald-100 text-emerald-800 text-xs px-2 py-1 rounded font-mono font-bold">LISTO</span>
+                    ) : (
+                      <span className="bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded font-mono font-bold">EN COLA</span>
+                    )}
                   </div>
                   <div className="border-b pb-2 mb-3">
                     <p className="text-xs text-gray-400">Detalle de produccion:</p>
@@ -103,30 +118,76 @@ export default function Pedidos() {
                     </ul>
                   </div>
                 </div>
-                <div className="mt-4 flex justify-between items-center pt-2 border-t border-dashed">
-                  <div>
-                    <p className="text-xs text-gray-400">Total a liquidar:</p>
-                    <p className="text-xl font-black text-gray-800">{totalStr}</p>
+
+                <div className="mt-4 pt-2 border-t border-dashed">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="text-xs text-gray-400">Total a liquidar:</p>
+                      <p className="text-xl font-black text-gray-800">{totalStr}</p>
+                    </div>
+
+                    {/* Pedido web LISTO: selector de metodo + botón Cobrar */}
+                    {esWeb && esListo ? (
+                      <div className="flex flex-col items-end gap-2">
+                        <select
+                          value={metodoPedido}
+                          onChange={e => setMetodoCobro(prev => ({ ...prev, [pedido.id_pedido]: e.target.value }))}
+                          className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 font-bold text-gray-700 bg-gray-50 focus:outline-none focus:border-emerald-500"
+                        >
+                          <option value="Efectivo">Efectivo</option>
+                          <option value="Tarjeta">Tarjeta</option>
+                        </select>
+                        <button
+                          onClick={() => {
+                            if (cobrando[pedido.id_pedido]) return
+                            setCobrando(prev => ({ ...prev, [pedido.id_pedido]: true }))
+                            fetch('http://127.0.0.1:5000/api/pedidos/web/cobrar', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ id_pedido: pedido.id_pedido, metodo_pago: metodoPedido })
+                            })
+                            .then(async res => {
+                              const data = await res.json()
+                              if (res.status === 409) {
+                                notificar('Este pedido ya fue cobrado o no está listo para cobrar.', 'error')
+                                return
+                              }
+                              if (!res.ok) throw new Error(data.error || 'Error al cobrar')
+                              notificar(`Pedido cobrado con exito (${metodoPedido}).`, 'exito')
+                              obtenerPedidos()
+                            })
+                            .catch(err => notificar(`Error: ${err.message}`, 'error'))
+                            .finally(() => setCobrando(prev => ({ ...prev, [pedido.id_pedido]: false })))
+                          }}
+                          disabled={cobrando[pedido.id_pedido]}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl font-bold transition-all flex items-center gap-2 disabled:bg-emerald-300 disabled:cursor-not-allowed text-xs"
+                        >
+                          {cobrando[pedido.id_pedido] ? 'Cobrando...' : 'Cobrar pedido'} <IconoFlecha />
+                        </button>
+                      </div>
+                    ) : (
+                      /* Pedido normal o web en cocina: botón Despachar */
+                      <button
+                        onClick={() => {
+                          if (despachando[pedido.id_pedido]) return
+                          setDespachando(prev => ({ ...prev, [pedido.id_pedido]: true }))
+                          fetch('http://127.0.0.1:5000/api/pedidos/despachar', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id_pedido: pedido.id_pedido, numero_mesa: origen })
+                          })
+                          .then(res => { if (!res.ok) throw new Error('Error al despachar'); return res.json(); })
+                          .then(() => { notificar(`Orden de ${origen} despachada con exito.`, 'exito'); obtenerPedidos(); })
+                          .catch(err => notificar(`Error: ${err.message}`, 'error'))
+                          .finally(() => setDespachando(prev => ({ ...prev, [pedido.id_pedido]: false })))
+                        }}
+                        disabled={despachando[pedido.id_pedido]}
+                        className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl font-bold transition-all flex items-center gap-2 disabled:bg-amber-300 disabled:cursor-not-allowed"
+                      >
+                        {despachando[pedido.id_pedido] ? 'Despachando...' : 'Despachar'} <IconoFlecha />
+                      </button>
+                    )}
                   </div>
-                  <button
-                    onClick={() => {
-                      if (despachando[pedido.id_pedido]) return
-                      setDespachando(prev => ({ ...prev, [pedido.id_pedido]: true }))
-                      fetch('http://127.0.0.1:5000/api/pedidos/despachar', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ id_pedido: pedido.id_pedido, numero_mesa: origen })
-                      })
-                      .then(res => { if (!res.ok) throw new Error('Error al despachar'); return res.json(); })
-                      .then(() => { notificar(`Orden de ${origen} despachada con exito.`, 'exito'); obtenerPedidos(); })
-                      .catch(err => notificar(`Error: ${err.message}`, 'error'))
-                      .finally(() => setDespachando(prev => ({ ...prev, [pedido.id_pedido]: false })))
-                    }}
-                    disabled={despachando[pedido.id_pedido]}
-                    className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl font-bold transition-all flex items-center gap-2 disabled:bg-amber-300 disabled:cursor-not-allowed"
-                  >
-                    {despachando[pedido.id_pedido] ? 'Despachando...' : 'Despachar'} <IconoFlecha />
-                  </button>
                 </div>
               </div>
             );
