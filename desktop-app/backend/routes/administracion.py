@@ -33,7 +33,7 @@ def _ventas_del_dia(cursor, fecha_str):
     """
     cursor.execute(
         "SELECT total FROM pedidos "
-        "WHERE DATE(fecha) = ? AND estado = 'Completado';",
+        "WHERE DATE(fecha) = ? AND estado = 'Completado' AND tipo = 'ticket';",
         (fecha_str,),
     )
     rows = cursor.fetchall()
@@ -47,7 +47,7 @@ def _sum_por_metodo(cursor, fecha_str, metodo):
     """Suma de ventas Completadas filtrando por metodo_pago."""
     cursor.execute(
         "SELECT SUM(total) AS suma FROM pedidos "
-        "WHERE DATE(fecha) = ? AND estado = 'Completado' AND metodo_pago = ?;",
+        "WHERE DATE(fecha) = ? AND estado = 'Completado' AND tipo = 'ticket' AND metodo_pago = ?;",
         (fecha_str, metodo),
     )
     resultado = cursor.fetchone()['suma']
@@ -159,7 +159,7 @@ def obtener_tickets_del_dia():
                        metodo_pago,
                        fecha
                 FROM pedidos
-                WHERE DATE(fecha) = ? AND estado = 'Completado'
+                WHERE DATE(fecha) = ? AND estado = 'Completado' AND tipo = 'ticket'
                 ORDER BY fecha ASC;
                 """,
                 (fecha_filtro,),
