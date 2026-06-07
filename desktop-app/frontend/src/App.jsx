@@ -226,6 +226,7 @@ function App() {
   const VISTAS_ADMIN = ['MENU', 'INVENTARIO', 'USUARIOS', 'ADMINISTRACION', 'CONFIGURACION']
 
   return (
+    <>
     <div className="flex min-h-screen bg-gray-100 text-gray-800 antialiased font-sans">
 
       {/* BARRA LATERAL */}
@@ -413,6 +414,7 @@ function App() {
       </main>
     </div>
     <DialogoUI />
+    </>
   )
 }
 
