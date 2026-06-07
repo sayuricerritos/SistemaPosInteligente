@@ -256,8 +256,8 @@ def registrar_venta_directa():
 
             cursor.execute(
                 "INSERT INTO pedidos "
-                "(numero_mesa, subtotal, total, productos, estado, fecha, metodo_pago) "
-                "VALUES (?, ?, ?, ?, 'Completado', ?, ?);",
+                "(numero_mesa, subtotal, total, productos, estado, fecha, metodo_pago, tipo) "
+                "VALUES (?, ?, ?, ?, 'Completado', ?, ?, 'ticket');",
                 ("LLEVAR / MOSTRADOR", total, total,
                  json.dumps(productos), fecha_hoy, metodo_pago),
             )
@@ -319,8 +319,8 @@ def recibir_pedido_web():
         with get_db_connection() as conn:
             conn.execute(
                 "INSERT INTO pedidos "
-                "(numero_mesa, subtotal, total, productos, estado, fecha, metodo_pago) "
-                "VALUES (?,?,?,?,'En Cocina',?,'Web');",
+                "(numero_mesa, subtotal, total, productos, estado, fecha, metodo_pago, tipo) "
+                "VALUES (?,?,?,?,'En Cocina',?,'Web','comanda');",
                 (f"Web: {cliente}", total_orden, total_orden,
                  json.dumps(prods), fecha_hoy),
             )

@@ -162,8 +162,12 @@ def comandar_mesa():
 @mesas_bp.route('/api/mesas/cerrar', methods=['POST'])
 def cerrar_mesa():
     """
-    Liquida la cuenta: marca los pedidos de la mesa como Completado con su
-    metodo_pago (para el corte segmentado), libera la mesa y limpia memoria.
+    Liquida la cuenta:
+      - Guard idempotente: si la mesa ya esta Libre, retorna exito sin duplicar.
+      - Marca las comandas 'En Cocina' como Completado (siguen con tipo='comanda').
+      - Inserta un ticket consolidado con tipo='ticket' que es la fuente de verdad
+        del cobro: total, metodo_pago y productos finales.
+      - Libera la mesa y limpia memoria.
     """
     data        = request.get_json(force=True, silent=True) or {}
     numero_mesa = str(data.get('numero_mesa', ''))
@@ -175,12 +179,49 @@ def cerrar_mesa():
 
     try:
         with get_db_connection() as conn:
-            conn.execute(
-                "UPDATE pedidos SET estado = 'Completado', metodo_pago = ? "
-                "WHERE numero_mesa = ? AND estado = 'En Cocina';",
-                (metodo_pago, f"Mesa {numero_mesa}"),
+            cursor = conn.cursor()
+
+            # Guard idempotente: si la mesa ya esta Libre, no duplicar ticket
+            cursor.execute(
+                "SELECT estado FROM mesas WHERE numero_mesa = ?;",
+                (numero_mesa,),
             )
-            conn.execute(
+            fila_mesa = cursor.fetchone()
+            if fila_mesa and fila_mesa['estado'] == 'Libre':
+                return jsonify({
+                    "mensaje":     f"Mesa {numero_mesa} ya estaba cerrada",
+                    "total":       total,
+                    "metodo_pago": metodo_pago,
+                }), 200
+
+            # Cerrar comandas pendientes en cocina (sin tocar metodo_pago)
+            cursor.execute(
+                "UPDATE pedidos SET estado = 'Completado' "
+                "WHERE numero_mesa = ? AND estado = 'En Cocina' AND tipo = 'comanda';",
+                (f"Mesa {numero_mesa}",),
+            )
+
+            # Datos del ticket consolidado: preferir la sesion en memoria;
+            # si el server reinicio, caer al payload del frontend.
+            sesion = mesas_activas.get(numero_mesa)
+            if sesion:
+                subtotal_ticket = float(sesion.get('subtotal', 0) or 0)
+                productos_ticket = sesion.get('productos', []) or []
+            else:
+                subtotal_ticket  = total
+                productos_ticket = data.get('productos', []) or []
+
+            fecha_pago = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+            cursor.execute(
+                "INSERT INTO pedidos "
+                "(numero_mesa, subtotal, total, productos, estado, fecha, metodo_pago, tipo) "
+                "VALUES (?, ?, ?, ?, 'Completado', ?, ?, 'ticket');",
+                (f"Mesa {numero_mesa}", subtotal_ticket, total,
+                 json.dumps(productos_ticket), fecha_pago, metodo_pago),
+            )
+
+            cursor.execute(
                 "UPDATE mesas SET estado = 'Libre' WHERE numero_mesa = ?;",
                 (numero_mesa,),
             )
