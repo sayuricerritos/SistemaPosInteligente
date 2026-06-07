@@ -44,16 +44,9 @@ export default function Configuracion({ usuario }) {
       )}
 
       <form onSubmit={handleGuardar} className="space-y-4 text-xs font-bold text-gray-500">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block mb-1">Nombre del Establecimiento:</label>
-            <input type="text" value={config.empresa} onChange={e => setConfig({...config, empresa: e.target.value})} className="w-full p-2.5 border rounded-xl bg-gray-50 font-medium text-gray-800 focus:outline-none" />
-          </div>
-          <div>
-            <label className="block mb-1">Número de mesas registrado (referencial):</label>
-            <input type="number" min="1" max="20" value={config.limite_mesas} onChange={e => setConfig({...config, limite_mesas: e.target.value})} className="w-full p-2.5 border rounded-xl bg-gray-50 font-medium text-gray-800 focus:outline-none" />
-            <p className="text-[10px] text-gray-400 font-medium mt-1 normal-case">Este valor es informativo. El panel de Mesas se genera desde la tabla de mesas del sistema.</p>
-          </div>
+        <div>
+          <label className="block mb-1">Nombre del Establecimiento:</label>
+          <input type="text" value={config.empresa} onChange={e => setConfig({...config, empresa: e.target.value})} className="w-full p-2.5 border rounded-xl bg-gray-50 font-medium text-gray-800 focus:outline-none" />
         </div>
 
         <div>
