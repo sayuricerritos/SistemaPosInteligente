@@ -91,6 +91,8 @@ export default function Mesas() {
   const [metodoPago, setMetodoPago]                     = useState('Efectivo');
   const [efectivoRecibido, setEfectivoRecibido]         = useState('');
   const [propina, setPropina]                           = useState(0);
+  const [enviandoComanda, setEnviandoComanda]           = useState(false);
+  const [cerrandoCuenta, setCerrandoCuenta]             = useState(false);
 
   const { notificar, DialogoUI } = useDialogo()
   const categories = ['Bebidas Calientes', 'Bebidas Frias', 'Panaderia', 'Alimentos'];
@@ -180,7 +182,9 @@ export default function Mesas() {
   };
 
   const enviarComandaAlBackend = () => {
+    if (enviandoComanda) return;
     if (comandaSesion.length === 0) return;
+    setEnviandoComanda(true);
     fetch('http://127.0.0.1:5000/api/mesas/comandar', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ numero_mesa: mesaSeleccionada.numero_mesa, productos: comandaSesion })
@@ -188,23 +192,27 @@ export default function Mesas() {
     .then(res => { if (!res.ok) throw new Error('Error al enviar comanda'); return res.json(); })
     .then(data => {
       const nuevaMesa = { ...mesaSeleccionada, productos: [...(mesaSeleccionada.productos || []), ...comandaSesion], subtotal: data.subtotal || mesaSeleccionada.subtotal };
-      setMesaSeleccionada(nuevaMesa); 
+      setMesaSeleccionada(nuevaMesa);
       mostrarToast('Comanda enviada a la cola de produccion correctamente')
     // El carrito se limpia con un breve retraso para que el cajero vea el resultado
       setTimeout(() => setComandaSesion([]), 800);
        refrescarEcosistemaPiso();
     })
-    .catch(err => notificar(`Error: ${err.message}`, 'error'));
+    .catch(err => notificar(`Error: ${err.message}`, 'error'))
+    .finally(() => setEnviandoComanda(false));
   };
 
   const liquidarCuentaMesa = () => {
+    if (cerrandoCuenta) return;
+    setCerrandoCuenta(true);
     fetch('http://127.0.0.1:5000/api/mesas/cerrar', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ numero_mesa: mesaSeleccionada.numero_mesa, total: mesaSeleccionada.subtotal + parseFloat(propina || 0), metodo_pago: metodoPago, productos: mesaSeleccionada.productos })
     })
     .then(res => { if (!res.ok) return res.json().then(err => { throw new Error(err.error) }); return res.json(); })
     .then(() => { refrescarEcosistemaPiso(); setMesaSeleccionada(null); setMostrarModalPago(false); setPropina(0); setEfectivoRecibido(''); notificar('Cuenta liquidada con exito. Mesa disponible.', 'exito'); })
-    .catch(err => notificar(`Error: ${err.message}`, 'error'));
+    .catch(err => notificar(`Error: ${err.message}`, 'error'))
+    .finally(() => setCerrandoCuenta(false));
   };
 
   const opcionesMesaConfig = (() => {
@@ -364,12 +372,12 @@ export default function Mesas() {
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={enviarComandaAlBackend}
-                  disabled={comandaSesion.length === 0}
-                  className={`py-2.5 rounded-xl font-black text-2xs text-white uppercase tracking-wider transition-colors flex items-center justify-center gap-1.5 ${comandaSesion.length === 0 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-[#6B8E23] hover:bg-[#5A781D]'}`}
+                  disabled={enviandoComanda || comandaSesion.length === 0}
+                  className={`py-2.5 rounded-xl font-black text-2xs text-white uppercase tracking-wider transition-colors flex items-center justify-center gap-1.5 ${enviandoComanda || comandaSesion.length === 0 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-[#6B8E23] hover:bg-[#5A781D]'}`}
                 >
                   <Toast mensaje={toastMsg} visible={toastVisible} />
                   <IconoImpresora className="w-3.5 h-3.5" />
-                  Mandar Cocina
+                  {enviandoComanda ? 'Enviando...' : 'Mandar Cocina'}
                 </button>
                 <button onClick={() => setMostrarModalPago(true)} className="py-2.5 bg-[#8B5A2B] text-white rounded-xl font-black text-2xs uppercase tracking-wider hover:bg-[#7A4F25] transition-colors">
                   Cerrar Cuenta
@@ -521,11 +529,11 @@ export default function Mesas() {
             <div className="p-4 bg-gray-50 border-t">
               <button
                 onClick={liquidarCuentaMesa}
-                disabled={metodoPago === 'Efectivo' && (!efectivoRecibido || parseFloat(efectivoRecibido) < (mesaSeleccionada.subtotal + parseFloat(propina || 0)))}
+                disabled={cerrandoCuenta || (metodoPago === 'Efectivo' && (!efectivoRecibido || parseFloat(efectivoRecibido) < (mesaSeleccionada.subtotal + parseFloat(propina || 0))))}
                 className="w-full py-3 bg-[#8B5A2B] hover:bg-[#7A4F25] text-white font-black rounded-xl text-xs uppercase tracking-wider disabled:bg-gray-200 disabled:text-gray-400 transition-colors flex items-center justify-center gap-2"
               >
                 <IconoImpresora />
-                Pagar y Cerrar Cuenta
+                {cerrandoCuenta ? 'Procesando...' : 'Pagar y Cerrar Cuenta'}
               </button>
             </div>
           </div>
