@@ -93,6 +93,9 @@ export default function Menu() {
   const [productoExtras,     setProductoExtras]     = useState('')
   const [mostrarFormExtra,   setMostrarFormExtra]   = useState(false)
   const [formExtra,          setFormExtra]          = useState(FORM_EXTRA_VACIO)
+  const [guardandoProducto,  setGuardandoProducto]  = useState(false)
+  const [guardandoReceta,    setGuardandoReceta]    = useState(false)
+  const [guardandoExtras,    setGuardandoExtras]    = useState(false)
   const { notificar, confirmar, DialogoUI } = useDialogo()
 
   // ============================================================
@@ -132,6 +135,7 @@ export default function Menu() {
 
   const handleGuardarProducto = (e) => {
     e.preventDefault()
+    if (guardandoProducto) return
     const url    = modoEdicion
       ? `http://127.0.0.1:5000/api/productos/${formProducto.id_producto_sel}`
       : 'http://127.0.0.1:5000/api/productos'
@@ -141,6 +145,7 @@ export default function Menu() {
       precio_venta:    parseFloat(formProducto.precio_venta),
       categoria:       formProducto.categoria,
     }
+    setGuardandoProducto(true)
     fetch(url, {
       method:  metodo,
       headers: { 'Content-Type': 'application/json' },
@@ -153,6 +158,7 @@ export default function Menu() {
       cargarDatos()
     })
     .catch(err => notificar(`Error: ${err.message}`))
+    .finally(() => setGuardandoProducto(false))
   }
 
   const handleEliminarProducto = (id_producto) => {
@@ -220,7 +226,9 @@ export default function Menu() {
   }
 
   const handleGuardarReceta = () => {
+    if (guardandoReceta) return
     if (!productoReceta) return
+    setGuardandoReceta(true)
     fetch('http://127.0.0.1:5000/api/productos/guardar-receta', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -229,6 +237,7 @@ export default function Menu() {
     .then(r => { if (!r.ok) throw new Error("Error al guardar receta"); return r.json() })
     .then(() => { notificar("Receta vinculada con exito."); cargarDatos() })
     .catch(err => notificar(`Error: ${err.message}`))
+    .finally(() => setGuardandoReceta(false))
   }
 
   // ============================================================
@@ -274,7 +283,9 @@ export default function Menu() {
   }
 
   const handleGuardarExtras = () => {
+    if (guardandoExtras) return
     if (!productoExtras) return
+    setGuardandoExtras(true)
     fetch('http://127.0.0.1:5000/api/productos/guardar-extras', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -283,6 +294,7 @@ export default function Menu() {
     .then(r => { if (!r.ok) throw new Error("Error al guardar extras"); return r.json() })
     .then(() => { notificar("Extras guardados correctamente."); cargarDatos() })
     .catch(err => notificar(`Error: ${err.message}`))
+    .finally(() => setGuardandoExtras(false))
   }
 
   // Insumo seleccionado para mostrar su unidad en el form de extra
@@ -380,12 +392,13 @@ export default function Menu() {
               <div className="flex gap-2 pt-1">
                 <button
                   type="submit"
+                  disabled={guardandoProducto}
                   className={`flex-1 py-3 text-white font-black rounded-xl uppercase tracking-wider shadow flex items-center justify-center gap-2 ${
-                    modoEdicion ? 'bg-amber-600 hover:bg-amber-700' : 'bg-[#8B5A2B] hover:bg-[#7A4F25]'
+                    guardandoProducto ? 'bg-gray-400 cursor-not-allowed' : (modoEdicion ? 'bg-amber-600 hover:bg-amber-700' : 'bg-[#8B5A2B] hover:bg-[#7A4F25]')
                   }`}
                 >
                   <IconoGuardar />
-                  {modoEdicion ? 'Actualizar' : 'Guardar'}
+                  {guardandoProducto ? 'Guardando...' : (modoEdicion ? 'Actualizar' : 'Guardar')}
                 </button>
                 {modoEdicion && (
                   <button
@@ -487,15 +500,15 @@ export default function Menu() {
             </div>
             <button
               type="button"
-              disabled={!productoReceta}
+              disabled={!productoReceta || guardandoReceta}
               onClick={handleGuardarReceta}
               className={`sm:w-48 py-3.5 rounded-xl font-black uppercase tracking-wider flex items-center justify-center gap-2 ${
-                !productoReceta
+                !productoReceta || guardandoReceta
                   ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                   : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow'
               }`}
             >
-              <IconoVincular />Vincular Receta
+              <IconoVincular />{guardandoReceta ? 'Guardando...' : 'Vincular Receta'}
             </button>
           </div>
 
@@ -621,15 +634,15 @@ export default function Menu() {
             </div>
             <button
               type="button"
-              disabled={!productoExtras}
+              disabled={!productoExtras || guardandoExtras}
               onClick={handleGuardarExtras}
               className={`sm:w-44 py-3.5 rounded-xl font-black uppercase tracking-wider flex items-center justify-center gap-2 ${
-                !productoExtras
+                !productoExtras || guardandoExtras
                   ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                   : 'bg-amber-600 hover:bg-amber-700 text-white shadow active:scale-95'
               }`}
             >
-              <IconoVincular />Guardar Extras
+              <IconoVincular />{guardandoExtras ? 'Guardando...' : 'Guardar Extras'}
             </button>
           </div>
 
