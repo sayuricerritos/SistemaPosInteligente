@@ -73,7 +73,7 @@ const FORM_EXTRA_VACIO = {
 // ============================================================
 // COMPONENTE PRINCIPAL
 // ============================================================
-export default function Menu() {
+export default function Menu({ usuario }) {
   const [productos,          setProductos]          = useState([])
   const [insumos,            setInsumos]            = useState([])
   const [subPestana,         setSubPestana]         = useState('General')

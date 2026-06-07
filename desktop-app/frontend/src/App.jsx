@@ -376,11 +376,11 @@ function App() {
 
               {vistaActual === 'LLEVAR'          && <Llevar />}
               {vistaActual === 'MESAS'           && <Mesas />}
-              {vistaActual === 'MENU'            && <Menu />}
-              {vistaActual === 'INVENTARIO'      && <Inventario />}
+              {vistaActual === 'MENU'            && <Menu usuario={usuario} />}
+              {vistaActual === 'INVENTARIO'      && <Inventario usuario={usuario} />}
               {vistaActual === 'USUARIOS'        && <Usuarios usuario={usuario} />}
               {vistaActual === 'ADMINISTRACION'  && <Administracion usuario={usuario} />}
-              {vistaActual === 'CONFIGURACION'   && <Configuracion />}
+              {vistaActual === 'CONFIGURACION'   && <Configuracion usuario={usuario} />}
               {vistaActual === 'PEDIDOS'         && <Pedidos />}
 
               {!['INICIO','LLEVAR','MESAS','MENU','INVENTARIO','USUARIOS','ADMINISTRACION','CONFIGURACION','PEDIDOS'].includes(vistaActual) && (

@@ -34,7 +34,7 @@ const FORM_NUEVO_INSUMO = {
   stock_minimo: '5',
 }
 
-export default function Inventario() {
+export default function Inventario({ usuario }) {
   const [insumos,       setInsumos]       = useState([])
   const [loading,       setLoading]       = useState(true)
   const [mostrarAjuste, setMostrarAjuste] = useState(false)

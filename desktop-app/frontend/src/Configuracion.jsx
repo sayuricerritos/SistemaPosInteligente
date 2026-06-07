@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-export default function Configuracion() {
+export default function Configuracion({ usuario }) {
   const [config, setConfig] = useState({ empresa: '', direccion: '', moneda: '', iva: '', limite_mesas: 5, version: '' })
   const [mensaje, setMensaje] = useState('')
 
