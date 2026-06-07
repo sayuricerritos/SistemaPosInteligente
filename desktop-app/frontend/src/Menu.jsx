@@ -360,7 +360,7 @@ export default function Menu() {
                     step="0.01"
                     required
                     value={formProducto.precio_venta}
-                    onChange={e => setFormProducto({ ...formProducto, precio_venta: noNeg(e.target.value) })}
+                    onChange={e => setFormProducto({ ...formProducto, precio_venta: noNeg(e.target.value, formProducto.precio_venta) })}
                     placeholder="0.00"
                     className="w-full p-2.5 border rounded-xl bg-gray-50 text-gray-800 font-mono focus:outline-none"
                   />
@@ -538,7 +538,7 @@ export default function Menu() {
                               step="0.001"
                               min="0"
                               value={item.cantidad}
-                              onChange={e => updateCantidadReceta(insumo.id_insumo, noNeg(e.target.value))}
+                              onChange={e => updateCantidadReceta(insumo.id_insumo, noNeg(e.target.value, item.cantidad))}
                               className="w-20 p-1.5 border rounded-lg text-xs font-mono text-center text-gray-800 bg-white focus:outline-none focus:border-[#8B5A2B]"
                             />
                             <span className="text-3xs text-gray-400 font-black w-10 text-left">
@@ -738,7 +738,7 @@ export default function Menu() {
                     step="0.01"
                     min="0"
                     value={formExtra.precio}
-                    onChange={e => setFormExtra({ ...formExtra, precio: noNeg(e.target.value) })}
+                    onChange={e => setFormExtra({ ...formExtra, precio: noNeg(e.target.value, formExtra.precio) })}
                     placeholder="0.00"
                     className="w-full p-2.5 border rounded-xl font-mono text-gray-800 bg-gray-50 focus:outline-none"
                   />
@@ -779,7 +779,7 @@ export default function Menu() {
                         step="0.001"
                         min="0"
                         value={formExtra.cantidad_descuento}
-                        onChange={e => setFormExtra({ ...formExtra, cantidad_descuento: noNeg(e.target.value) })}
+                        onChange={e => setFormExtra({ ...formExtra, cantidad_descuento: noNeg(e.target.value, formExtra.cantidad_descuento) })}
                         placeholder="Ej. 0.015 KG, 1 Pieza, 0.250 ML"
                         className="w-full p-2.5 border rounded-xl font-mono text-gray-800 bg-gray-50 focus:outline-none"
                       />
