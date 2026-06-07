@@ -44,6 +44,7 @@ export default function Inventario() {
   const [cantidadInput, setCantidadInput] = useState('')
   const [formNuevo,     setFormNuevo]     = useState(FORM_NUEVO_INSUMO)
   const [guardandoNuevo, setGuardandoNuevo] = useState(false)
+  const [ajustando,     setAjustando]     = useState(false)
   const { notificar, confirmar, DialogoUI } = useDialogo()
 
 const cargarInsumos = () => {
@@ -75,7 +76,9 @@ const cargarInsumos = () => {
 
 const handleProcesarAjuste = (e) => {
   e.preventDefault()
+  if (ajustando) return
   if (!cantidadInput || parseFloat(cantidadInput) <= 0) return
+  setAjustando(true)
   fetch('http://127.0.0.1:5000/api/inventario/ajustar', {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -95,6 +98,7 @@ const handleProcesarAjuste = (e) => {
     setInsumoSel(null)
   })
   .catch(err => notificar(`Error al ajustar inventario: ${err.message}`))
+  .finally(() => setAjustando(false))
 }
 
 const handleCrearInsumo = (e) => {
@@ -270,13 +274,14 @@ const handleCrearInsumo = (e) => {
               </button>
               <button
                 type="submit"
+                disabled={ajustando}
                 className={`flex-1 py-2.5 text-white rounded-xl shadow transition-colors ${
                   tipoAjuste === 'ENTRADA'
-                    ? 'bg-emerald-600 hover:bg-emerald-700'
-                    : 'bg-red-600 hover:bg-red-700'
+                    ? ajustando ? 'bg-emerald-400 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700'
+                    : ajustando ? 'bg-red-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'
                 }`}
               >
-                {tipoAjuste === 'ENTRADA' ? 'Confirmar Carga' : 'Registrar Merma'}
+                {ajustando ? 'Procesando...' : (tipoAjuste === 'ENTRADA' ? 'Confirmar Carga' : 'Registrar Merma')}
               </button>
             </div>
           </form>
