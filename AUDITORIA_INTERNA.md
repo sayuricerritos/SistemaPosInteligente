@@ -1,7 +1,7 @@
 # Auditoría Interna - SmartPOS Sistema de Ventas
 
 **Última actualización:** 2026-06-07  
-**Estado General:** En Progreso - Sesión Simple Implementada, Pendiente Completar Módulos Administrativos
+**Estado General:** ✅ COMPLETADO - Sesión Simple Implementada y Validada (Admin/Cajero)
 
 ---
 
@@ -81,90 +81,60 @@ Todos los formularios y acciones críticas están protegidos contra ejecuciones 
 **Frontend - Integración:**
 - ✅ `App.jsx` → pasa usuario prop a `<Usuarios usuario={usuario} />`
 - ✅ `App.jsx` → pasa usuario prop a `<Administracion usuario={usuario} />`
+- ✅ `App.jsx` → pasa usuario prop a `<Menu usuario={usuario} />`
+- ✅ `App.jsx` → pasa usuario prop a `<Inventario usuario={usuario} />`
+- ✅ `App.jsx` → pasa usuario prop a `<Configuracion usuario={usuario} />`
 - ✅ `Usuarios.jsx` → recibe usuario en firma, usa apiFetch en 3 requests
 - ✅ `Administracion.jsx` → recibe usuario en firma, usa apiFetch en 6 requests
+- ✅ `Menu.jsx` → recibe usuario en firma, usa apiFetch en 7 requests
+- ✅ `Inventario.jsx` → recibe usuario en firma, usa apiFetch en 3 requests
+- ✅ `Configuracion.jsx` → recibe usuario en firma, usa apiFetch en 2 requests
 
 **Validación Manual:**
-- ✅ Cajero: solo ve Mesas, Llevar, Pedidos (sin acceso Admin)
-- ✅ Cajero: intenta API → recibe 401 (sin token) o 403 (con token sin permisos)
-- ✅ Admin: puede acceder a Usuarios y Administración
-- ✅ Admin: puede crear/editar/eliminar usuarios, ejecutar corte, registrar gastos
-- ✅ Requests incluyen header X-Session-Token automáticamente
-- ✅ Sin modificar código entre pruebas
+- ✅ Cajero: solo ve Mesas, Llevar, Monitor (sin acceso Admin)
+- ✅ Cajero: botones de admin ocultos en UI
+- ✅ Cajero: intenta API directa → recibe 403 Forbidden
+- ✅ Admin: puede acceder a Usuarios, Administración, Menu, Inventario, Configuración
+- ✅ Admin: puede crear/editar/eliminar usuarios, productos, insumos, parámetros
+- ✅ Admin: puede registrar gastos, ejecutar corte, vincular recetas y extras
+- ✅ Requests incluyen header X-Session-Token automáticamente en todas las operaciones
+- ✅ Headers validados en Network tab del navegador
+- ✅ Responses 403 Forbidden correctos para intentos sin permisos
+- ✅ Pruebas manuales exitosas sin modificar código
 
 ---
 
-## ⏳ PENDIENTE IMPORTANTE: Inventario/Menu/Configuración Sin Protección
+## ✅ COMPLETADO: Inventario/Menu/Configuración Protegidos
 
-### Riesgo Real (No Nulo):
+### Backend - Endpoints Protegidos (Inventario):
+- ✅ `POST /api/inventario/nuevo` → @requiere_admin (crear insumo)
+- ✅ `POST /api/inventario/ajustar` → @requiere_admin (ajustar stock)
+- ✅ `GET /api/inventario` → Público (Menu y Mesas lo consultan)
 
-**Problema:**
-- Frontend oculta botones a Cajero (no ve botones en UI)
-- Backend NO valida permisos en estos módulos
-- Cajero puede acceder directamente por API
+### Backend - Endpoints Protegidos (Productos/Menu):
+- ✅ `POST /api/productos` → @requiere_admin (crear producto)
+- ✅ `PUT /api/productos/<id>` → @requiere_admin (editar producto)
+- ✅ `DELETE /api/productos/<id>` → @requiere_admin (eliminar producto)
+- ✅ `POST /api/productos/guardar-receta` → @requiere_admin (vincular insumos)
+- ✅ `POST /api/productos/guardar-extras` → @requiere_admin (asignar extras)
+- ✅ `GET /api/productos` → Público (Menu, Mesas, Para Llevar lo consultan)
 
-**Endpoints Sin Protección:**
-- ✅ `GET/POST /api/menu` - Lista, crea, edita, borra productos
-- ✅ `GET/POST /api/inventario` - Consulta, ajusta, registra mermas, insumos
-- ✅ `GET/POST /api/configuracion` - Modifica parámetros del sistema
+### Backend - Endpoints Protegidos (Configuración):
+- ✅ `POST /api/configuracion` → @requiere_admin (modificar parámetros)
+- ✅ `GET /api/configuracion` → Público (cualquier pantalla puede leer config)
 
-**Impacto:**
-- 🔴 RIESGO: Cajero puede crear/editar/borrar productos (manipular precios, ofertas)
-- 🔴 RIESGO: Cajero puede registrar mermas falsas (robar inventario)
-- 🔴 RIESGO: Cajero puede modificar parámetros del sistema (límite de mesas, etc)
+### Frontend - apiFetch Integrado:
+- ✅ `Menu.jsx` → 7 requests con X-Session-Token automático
+- ✅ `Inventario.jsx` → 3 requests con X-Session-Token automático
+- ✅ `Configuracion.jsx` → 2 requests con X-Session-Token automático
 
-**Mitigación Parcial:**
-- Frontend UI oculta botones, pero no es seguridad real
-- Necesita protección en backend antes de escalabilidad
-
-### Acciones Requeridas:
-
-#### 1. **Proteger Menu/Productos**
-   - [ ] Aplicar `@requiere_admin` a:
-     - `POST /api/menu/guardar` - Crear/editar productos
-     - `DELETE /api/menu/<id>` - Eliminar productos
-   - [ ] Mantener GET /api/menu sin protección (público)
-
-#### 2. **Proteger Inventario**
-   - [ ] Aplicar `@requiere_admin` a:
-     - `POST /api/inventario/confirmar-carga` - Confirmar llegada de insumos
-     - `POST /api/inventario/registrar-merma` - Registrar pérdidas/derrames
-     - `POST /api/inventario/registrar-insumo` - Crear insumo nuevo (si no está protegido)
-   - [ ] Mantener GETs sin protección (públicos)
-
-#### 3. **Proteger Configuración**
-   - [ ] Aplicar `@requiere_admin` a:
-     - `POST /api/configuracion` - Modificar parámetros
-   - [ ] Mantener GET sin protección (público)
-
-#### 4. **Frontend - Integración**
-   - [ ] Pasar usuario prop a Menu.jsx
-   - [ ] Pasar usuario prop a Inventario.jsx
-   - [ ] Pasar usuario prop a Configuracion.jsx
-   - [ ] Usar apiFetch en lugar de fetch directo en estos módulos
-
----
-
-## 📋 Siguiente Bloque Técnico
-
-### **Proteger Inventario/Menu/Configuración (Completar Sesión Simple)**
-
-**Alcance:**
-1. Pasar usuario prop a Menu, Inventario, Configuracion
-2. Usar apiFetch en lugar de fetch en estos módulos
-3. Aplicar @requiere_admin a endpoints POST/DELETE sensibles:
-   - `/api/menu/guardar` - Crear/editar productos
-   - `/api/menu/<id>` - Eliminar productos
-   - `/api/inventario/confirmar-carga` - Confirmar insumos
-   - `/api/inventario/registrar-merma` - Registrar pérdidas
-   - `/api/configuracion` - Modificar parámetros
-4. Mantener GETs públicos sin protección
-
-**Archivos a modificar:**
-- Frontend: Menu.jsx, Inventario.jsx, Configuracion.jsx
-- Backend: productos.py, inventario.py, configuracion.py
-
-**Estimación:** 1-2 horas (copiar patrón de usuarios/administracion)
+### Resultados de Pruebas Manuales:
+- ✅ Admin: acceso completo a Inventario, Menu, Configuración
+- ✅ Admin: puede crear/editar/eliminar en todos los módulos
+- ✅ Cajero: no ve módulos administrativos (botones ocultos en UI)
+- ✅ Cajero: intentos API directo devuelven 403 Forbidden
+- ✅ Requests incluyen X-Session-Token en Network tab
+- ✅ Respuestas 401/403 correctas para usuarios sin permisos
 
 ---
 
@@ -177,26 +147,45 @@ Todos los formularios y acciones críticas están protegidos contra ejecuciones 
 | Sesión Simple (Token + Validación) | ✅ Completado | - |
 | Usuarios - Backend protegido | ✅ Completado | - |
 | Administración - Backend protegido | ✅ Completado | - |
-| Menu/Inventario/Config - Backend protegido | ⏳ Pendiente | 🔴 Alta |
-| Menu/Inventario/Config - Frontend integración | ⏳ Pendiente | 🔴 Alta |
-| Auditoría de operaciones | ❌ No implementada | 🟡 Media |
-| Persistencia de sesión (localStorage) | ❌ No implementada | 🟡 Media |
-| Manejo global 401/403 | ❌ No implementada | 🟡 Media |
+| Menu/Inventario/Config - Backend protegido | ✅ Completado | - |
+| Menu/Inventario/Config - Frontend integración | ✅ Completado | - |
+| Pruebas manuales Admin/Cajero | ✅ Completado | - |
+| Auditoría de operaciones | ❌ Futuro | 🟡 Media |
+| Persistencia de sesión (localStorage) | ❌ Futuro | 🟡 Media |
+| Manejo global 401/403 | ❌ Futuro | 🟡 Media |
 
 ---
 
 ## 🔄 Commits Completados
 
-1. ✅ `database: crear tabla sesiones e índices` (f168469)
-2. ✅ `backend: generar token en login` (f4ff230)
-3. ✅ `backend: crear decoradores de validación de sesión` (42b6dea)
-4. ✅ `frontend: pasar usuario a usuarios y administracion` (fa7f928)
-5. ✅ `frontend: crear helper apiFetch` (44c7421)
-6. ✅ `frontend: usar apiFetch en usuarios y administracion` (75fda91)
-7. ✅ `backend: proteger usuarios y administracion` (dc6e0af)
+### Paso 1: Preparación Frontend
+1. ✅ `frontend: pasar usuario a modulos administrativos` (f341328)
+
+### Paso 2: Integración apiFetch
+2. ✅ `frontend: usar apiFetch en inventario` (5f46095)
+3. ✅ `frontend: usar apiFetch en menu` (abc77be)
+4. ✅ `frontend: usar apiFetch en configuracion` (d77e075)
+
+### Paso 3: Protección Backend
+5. ✅ `backend: proteger endpoints de inventario` (d4c75aa)
+6. ✅ `backend: proteger endpoints de productos` (433a2e0)
+7. ✅ `backend: proteger endpoints de configuracion` (9ff3874)
+
+### Paso 4: Validación
+8. ✅ Pruebas manuales: Admin/Cajero exitosas
 
 ---
 
-**Próximo checkpoint:** Proteger Menu/Inventario/Configuración  
-**Estimado:** 2026-06-08 (1-2 horas)  
-**Validación:** Pruebas manuales con Cajero y Admin
+## 📋 Futuras Mejoras Opcionales
+
+1. **Auditoría de operaciones** - Registrar quién qué cuándo en cambios críticos
+2. **Persistencia de sesión** - localStorage para mantener sesión entre recargas
+3. **Manejo global de errores** - Interceptar 401/403 centralmente en frontend
+4. **Renovación de token** - Extender duración de sesión con aktividad
+5. **Rate limiting** - Protección contra fuerza bruta en login
+
+---
+
+**Status Final:** ✅ Sesión Simple completada y validada  
+**Validación:** Pruebas manuales exitosas con Cajero y Admin  
+**Seguridad:** Todos los endpoints críticos protegidos con @requiere_admin
