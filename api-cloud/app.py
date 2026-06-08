@@ -42,7 +42,7 @@ def obtener_productos():
                 cur.execute("""
                     SELECT id AS id_producto,
                            nombre_producto,
-                           precio_venta,
+                           precio_venta::float AS precio_venta,
                            categoria,
                            insumos_receta,
                            extras_disponibles
@@ -119,8 +119,8 @@ def obtener_pedidos_activos():
                 cur.execute("""
                     SELECT id AS id_pedido,
                            numero_mesa,
-                           subtotal,
-                           total,
+                           subtotal::float AS subtotal,
+                           total::float AS total,
                            productos,
                            estado,
                            metodo_pago
