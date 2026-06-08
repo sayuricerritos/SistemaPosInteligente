@@ -254,13 +254,13 @@ def obtener_tickets_admin():
                            numero_mesa,
                            total::float AS total,
                            metodo_pago,
-                           TO_CHAR(fecha AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS') AS fecha,
+                           TO_CHAR(fecha AT TIME ZONE 'America/Mexico_City', 'YYYY-MM-DD HH24:MI:SS') AS fecha,
                            tipo,
                            'cloud' AS origen_api
                     FROM pedidos
                     WHERE tipo = 'ticket'
                       AND estado = 'Completado'
-                      AND fecha::date = %s::date
+                      AND (fecha AT TIME ZONE 'America/Mexico_City')::date = %s::date
                     ORDER BY fecha ASC
                 """, (fecha,))
                 rows = cur.fetchall()
