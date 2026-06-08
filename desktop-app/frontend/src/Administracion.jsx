@@ -33,6 +33,15 @@ const IconoTicket = () => (
   </svg>
 )
 
+const API_LOCAL = 'http://127.0.0.1:5000'
+const API_CLOUD = 'https://sistemaposinteligente.onrender.com'
+
+const fetchConTimeout = (url, ms) => {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), ms)
+  return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(timer))
+}
+
 export default function Administracion({ usuario, onSessionError }) {
   // Estado base con ceros explicitos garantiza que .toFixed(2) nunca
   // actue sobre undefined durante el primer ciclo de renderizado.
@@ -49,10 +58,14 @@ export default function Administracion({ usuario, onSessionError }) {
   const [gastos,                  setGastos]                  = useState([]);
   const [corte,                   setCorte]                   = useState(CORTE_VACIO);
   const [tickets,                 setTickets]                 = useState([]);
-  const [fechaFiltro,             setFechaFiltro]             = useState(new Date().toISOString().split('T')[0]);
+  const [fechaFiltro,             setFechaFiltro]             = useState(() => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+  });
   const [seccionActiva,           setSeccionActiva]           = useState('Finanzas');
   const [concepto,                setConcepto]                = useState('');
   const [montoGasto,              setMontoGasto]              = useState('');
+  const [avisoTicketsCloud,        setAvisoTicketsCloud]        = useState(null);
   const [ejecutando,              setEjecutando]              = useState(false);
   const [mensajeCorte,            setMensajeCorte]            = useState(null);
   const [corteHistorico,          setCorteHistorico]          = useState(null);
@@ -70,10 +83,26 @@ export default function Administracion({ usuario, onSessionError }) {
       .then(d => { if (!d.error) setCorte({ ...CORTE_VACIO, ...d }) })
       .catch(e => console.error("Error corte:", e));
 
-    apiFetch(`http://127.0.0.1:5000/api/administracion/tickets?fecha=${fechaFiltro}`, {}, usuario, onSessionError)
+    const cargarTicketsLocal = apiFetch(`${API_LOCAL}/api/administracion/tickets?fecha=${fechaFiltro}`, {}, usuario, onSessionError)
       .then(r => r.json())
-      .then(d => setTickets(Array.isArray(d) ? d : []))
-      .catch(e => console.error("Error tickets:", e));
+      .then(d => (Array.isArray(d) ? d : []).map(t => ({ ...t, origen_api: 'local' })))
+
+    const cargarTicketsCloud = fetchConTimeout(`${API_CLOUD}/api/administracion/tickets?fecha=${fechaFiltro}`, 6000)
+      .then(r => r.json())
+      .then(d => Array.isArray(d) ? d : [])
+
+    Promise.allSettled([cargarTicketsLocal, cargarTicketsCloud]).then(([resLocal, resCloud]) => {
+      const locales = resLocal.status === 'fulfilled' ? resLocal.value : []
+      const cloud   = resCloud.status  === 'fulfilled' ? resCloud.value  : []
+      const cloudConOrigen = cloud.map(t => ({ ...t, origen_api: t.origen_api || 'cloud' }))
+      
+      setTickets([...locales, ...cloudConOrigen])
+      if (resCloud.status === 'rejected') {
+        setAvisoTicketsCloud('No se pudo conectar con la API cloud. Solo se muestran tickets locales.')
+      } else {
+        setAvisoTicketsCloud(null)
+      }
+    });
 
     setCargandoCorteHistorico(true)
     apiFetch(`http://127.0.0.1:5000/api/administracion/cortes-historicos/fecha/${fechaFiltro}`, {}, usuario, onSessionError)
@@ -294,6 +323,14 @@ export default function Administracion({ usuario, onSessionError }) {
             </div>
           </div>
 
+          {/* Banner aviso cloud tickets */}
+          {avisoTicketsCloud && (
+            <div className="bg-amber-50 border border-amber-200 text-amber-800 p-3 rounded-xl text-3xs font-bold flex justify-between items-center">
+              <span>⚠️ {avisoTicketsCloud}</span>
+              <button onClick={() => setAvisoTicketsCloud(null)} className="ml-4 text-amber-500 hover:text-amber-700 font-black">✕</button>
+            </div>
+          )}
+
           {/* HISTORIAL DE TICKETS */}
           <div className="bg-white border rounded-2xl p-5 shadow-2xs space-y-3">
             <div className="flex justify-between items-center border-b pb-2">
@@ -313,12 +350,15 @@ export default function Administracion({ usuario, onSessionError }) {
                       <th className="p-2">Mesa / Canal</th>
                       <th className="p-2">Total</th>
                       <th className="p-2">Metodo</th>
+                      <th className="p-2">Origen</th>
                       <th className="p-2">Hora</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
-                    {tickets.map(t => (
-                      <tr key={t.id_pedido} className="hover:bg-gray-50/50">
+                    {tickets.map(t => {
+                      const esCloud = t.origen_api === 'cloud'
+                      return (
+                      <tr key={`${t.origen_api}-${t.id_pedido}`} className="hover:bg-gray-50/50">
                         <td className="p-2 font-mono text-gray-400">#{t.id_pedido}</td>
                         <td className="p-2 text-gray-700 font-black">{t.numero_mesa}</td>
                         <td className="p-2 font-mono font-black text-gray-800">${parseFloat(t.total).toFixed(2)}</td>
@@ -331,11 +371,21 @@ export default function Administracion({ usuario, onSessionError }) {
                             {t.metodo_pago || 'Efectivo'}
                           </span>
                         </td>
+                        <td className="p-2">
+                          <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-black uppercase ${
+                            esCloud
+                              ? 'bg-sky-50 text-sky-700 border border-sky-100'
+                              : 'bg-gray-100 text-gray-500 border border-gray-200'
+                          }`}>
+                            {esCloud ? 'Web Cloud' : 'Local'}
+                          </span>
+                        </td>
                         <td className="p-2 font-mono text-gray-400">
                           {t.fecha ? t.fecha.split(' ')[1]?.slice(0, 5) : '--'}
                         </td>
                       </tr>
-                    ))}
+                      )
+                    })}
                   </tbody>
                 </table>
               )}

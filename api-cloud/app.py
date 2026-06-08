@@ -239,6 +239,34 @@ def cobrar_pedido_web():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# ---------------------------------------------------------------------------
+# Administración - Tickets cloud
+# ---------------------------------------------------------------------------
+
+@app.route("/api/administracion/tickets")
+def obtener_tickets_admin():
+    fecha = request.args.get("fecha", datetime.now().strftime("%Y-%m-%d"))
+    try:
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT id AS id_pedido,
+                           numero_mesa,
+                           total::float AS total,
+                           metodo_pago,
+                           TO_CHAR(fecha AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS') AS fecha,
+                           tipo,
+                           'cloud' AS origen_api
+                    FROM pedidos
+                    WHERE tipo = 'ticket'
+                      AND estado = 'Completado'
+                      AND fecha::date = %s::date
+                    ORDER BY fecha ASC
+                """, (fecha,))
+                rows = cur.fetchall()
+        return jsonify([dict(r) for r in rows]), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(debug=True)
