@@ -1,5 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useDialogo } from './components/Dialogo'
+
+// Fuentes de pedidos: backend local (SQLite) y API cloud (Render + Neon).
+// El Monitor une ambas; si una falla, la otra sigue mostrandose.
+const API_LOCAL = 'http://127.0.0.1:5000'
+const API_CLOUD = 'https://sistemaposinteligente.onrender.com'
+
 const IconoMonitor = () => (
   <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
@@ -46,6 +52,7 @@ export default function Pedidos() {
   const [pedidos, setPedidos]   = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError]       = useState(null);
+  const [avisoCloud, setAvisoCloud] = useState(null);
   const [despachando, setDespachando]         = useState({});
   const [pedidoWebACobrar, setPedidoWebACobrar] = useState(null);
   const [metodoPagoWeb, setMetodoPagoWeb]       = useState('Efectivo');
@@ -82,7 +89,8 @@ export default function Pedidos() {
   const confirmarCobroWeb = () => {
     if (procesandoCobroWeb) return
     setProcesandoCobroWeb(true)
-    fetch('http://127.0.0.1:5000/api/pedidos/web/cobrar', {
+    const base = pedidoWebACobrar.origen_api === 'cloud' ? API_CLOUD : API_LOCAL
+    fetch(`${base}/api/pedidos/web/cobrar`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id_pedido: pedidoWebACobrar.id_pedido, metodo_pago: metodoPagoWeb })
@@ -103,33 +111,74 @@ export default function Pedidos() {
     .finally(() => setProcesandoCobroWeb(false))
   }
 
-  const obtenerPedidos = () => {
-    fetch('http://127.0.0.1:5000/api/pedidos/activos')
+  // Clave unica entre fuentes: evita colision de id_pedido (ambas BD empiezan en 1)
+  const clavePedido = p => `${p.origen_api}-${p.id_pedido}`
+
+  // Fetch con timeout via AbortController — evita que cloud dormido bloquee local
+  const fetchConTimeout = (url, ms) => {
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => ctrl.abort(), ms)
+    return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(timer))
+  }
+
+  const cargarFuente = (base, origen_api) => {
+    const fetcher = origen_api === 'cloud'
+      ? fetchConTimeout(`${base}/api/pedidos/activos`, 6000)
+      : fetch(`${base}/api/pedidos/activos`)
+    return fetcher
       .then(res => {
-        if (!res.ok) throw new Error('Error en la respuesta del servidor');
-        return res.json();
+        if (!res.ok) throw new Error(`Respuesta ${res.status}`)
+        return res.json()
       })
-      .then(data => {
-        const lista       = Array.isArray(data) ? data : []
-        const idsActuales = new Set(lista.map(p => p.id_pedido))
+      .then(data => (Array.isArray(data) ? data : []).map(p => ({ ...p, origen_api })))
+  }
 
-        if (idsVistos.current === null) {
-          // Primera carga: inicializar sin alertar
-          idsVistos.current = idsActuales
-        } else {
-          // Cargas posteriores: detectar ids que no estaban antes
-          const nuevos = [...idsActuales].filter(id => !idsVistos.current.has(id))
-          if (nuevos.length > 0) {
-            reproducirBeep()
-            notificar('Nuevo pedido recibido en cocina.', 'info')
-          }
-          idsVistos.current = idsActuales
-        }
+  const obtenerPedidos = () => {
+    Promise.allSettled([
+      cargarFuente(API_LOCAL, 'local'),
+      cargarFuente(API_CLOUD, 'cloud'),
+    ]).then(([resLocal, resCloud]) => {
+      const localOk = resLocal.status === 'fulfilled'
+      const cloudOk = resCloud.status === 'fulfilled'
 
-        setPedidos(lista)
+      const pedidosLocal = localOk ? resLocal.value : []
+      const pedidosCloud = cloudOk ? resCloud.value : []
+      const lista        = [...pedidosLocal, ...pedidosCloud]
+
+      // Error de local rompe el monitor solo si tampoco hay cloud
+      if (!localOk && !cloudOk) {
+        console.error('Error cargando pedidos:', resLocal.reason, resCloud.reason)
+        setError('No se pudo conectar a ninguna fuente de pedidos.')
         setCargando(false)
-      })
-      .catch(err => { console.error("Error cargando pedidos:", err); setError(err.message); setCargando(false); });
+        return
+      }
+      setError(null)
+
+      // Aviso discreto no bloqueante si una fuente falla
+      if (!cloudOk) {
+        setAvisoCloud('No se pudo conectar con pedidos cloud.')
+      } else if (!localOk) {
+        setAvisoCloud('No se pudo conectar con pedidos locales.')
+      } else {
+        setAvisoCloud(null)
+      }
+
+      const idsActuales = new Set(lista.map(clavePedido))
+      if (idsVistos.current === null) {
+        // Primera carga: inicializar sin alertar
+        idsVistos.current = idsActuales
+      } else {
+        const nuevos = [...idsActuales].filter(id => !idsVistos.current.has(id))
+        if (nuevos.length > 0) {
+          reproducirBeep()
+          notificar('Nuevo pedido recibido en cocina.', 'info')
+        }
+        idsVistos.current = idsActuales
+      }
+
+      setPedidos(lista)
+      setCargando(false)
+    })
   };
 
   useEffect(() => {
@@ -159,6 +208,13 @@ export default function Pedidos() {
         </span>
       </div>
 
+      {avisoCloud && (
+        <div className="mb-4 bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold px-4 py-2 rounded-lg flex items-center gap-2">
+          <IconoAlerta className="w-4 h-4 flex-shrink-0" />
+          {avisoCloud}
+        </div>
+      )}
+
       {pedidos.length === 0 ? (
         <div className="bg-white p-8 rounded-xl shadow-sm text-center border text-gray-400 flex flex-col items-center gap-3">
           <IconoVacio className="text-gray-300" />
@@ -166,16 +222,17 @@ export default function Pedidos() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {pedidos.map((pedido, index) => {
+          {pedidos.map((pedido) => {
             const origen         = pedido.numero_mesa || "Mostrador";
             const totalStr       = pedido.total ? `$${parseFloat(pedido.total).toFixed(2)}` : "$0.00";
             const listaProductos = Array.isArray(pedido.productos) ? pedido.productos : [];
             const esWeb   = pedido.metodo_pago === 'Web';
             const esListo = pedido.estado === 'Listo';
+            const esCloud = pedido.origen_api === 'cloud';
 
             return (
               <div
-                key={index}
+                key={clavePedido(pedido)}
                 className={`bg-white rounded-xl shadow-md border-t-4 p-5 flex flex-col justify-between ${
                   esListo ? 'border-emerald-500' : 'border-amber-500'
                 }`}
@@ -185,6 +242,11 @@ export default function Pedidos() {
                     <h3 className="text-sm font-bold text-gray-700 flex items-center gap-1.5">
                       <IconoMesa className="text-gray-400" />
                       {origen.startsWith('Mesa') || origen.includes('Web') ? origen : `Mesa ${origen}`}
+                      <span className={`text-3xs px-1.5 py-0.5 rounded font-bold ${
+                        esCloud ? 'bg-sky-100 text-sky-700' : 'bg-gray-100 text-gray-500'
+                      }`}>
+                        {esCloud ? 'Web Cloud' : 'Local'}
+                      </span>
                     </h3>
                     {esListo ? (
                       <span className="bg-emerald-100 text-emerald-800 text-xs px-2 py-1 rounded font-mono font-bold">LISTO</span>
@@ -227,9 +289,11 @@ export default function Pedidos() {
                       /* Pedido normal o web en cocina: botón Despachar */
                       <button
                         onClick={() => {
-                          if (despachando[pedido.id_pedido]) return
-                          setDespachando(prev => ({ ...prev, [pedido.id_pedido]: true }))
-                          fetch('http://127.0.0.1:5000/api/pedidos/despachar', {
+                          const clave = clavePedido(pedido)
+                          if (despachando[clave]) return
+                          setDespachando(prev => ({ ...prev, [clave]: true }))
+                          const base = pedido.origen_api === 'cloud' ? API_CLOUD : API_LOCAL
+                          fetch(`${base}/api/pedidos/despachar`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ id_pedido: pedido.id_pedido, numero_mesa: origen })
@@ -237,12 +301,12 @@ export default function Pedidos() {
                           .then(res => { if (!res.ok) throw new Error('Error al despachar'); return res.json(); })
                           .then(() => { notificar(`Orden de ${origen} despachada con exito.`, 'exito'); obtenerPedidos(); })
                           .catch(err => notificar(`Error: ${err.message}`, 'error'))
-                          .finally(() => setDespachando(prev => ({ ...prev, [pedido.id_pedido]: false })))
+                          .finally(() => setDespachando(prev => ({ ...prev, [clave]: false })))
                         }}
-                        disabled={despachando[pedido.id_pedido]}
+                        disabled={despachando[clavePedido(pedido)]}
                         className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl font-bold transition-all flex items-center gap-2 disabled:bg-amber-300 disabled:cursor-not-allowed"
                       >
-                        {despachando[pedido.id_pedido] ? 'Despachando...' : 'Despachar'} <IconoFlecha />
+                        {despachando[clavePedido(pedido)] ? 'Despachando...' : 'Despachar'} <IconoFlecha />
                       </button>
                     )}
                   </div>
